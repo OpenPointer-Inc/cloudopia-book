@@ -95,11 +95,11 @@ const config: Config = {
           type: 'docSidebar',
           sidebarId: 'tutorialSidebar',
           position: 'left',
-          label: 'Tutorial',
+          label: 'Book',
         },
         { to: '/blog', label: 'Blog', position: 'left' },
         {
-          href: 'https://github.com/facebook/docusaurus',
+          href: 'https://github.com/OpenPointer-Inc/cloudopia-book',
           label: 'GitHub',
           position: 'right',
           className: 'navbar-cta',

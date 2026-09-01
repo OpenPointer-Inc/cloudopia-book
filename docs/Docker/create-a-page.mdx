@@ -2,42 +2,1306 @@
 sidebar_position: 1
 ---
 
-# Create a Page
+# 🐳 Docker Foundations
 
-Add **Markdown or React** files to `src/pages` to create a **standalone page**:
+Let's start from **"What is Docker?"**, assuming you've never seen Docker before.
 
-- `src/pages/index.js` → `localhost:3000/`
-- `src/pages/foo.md` → `localhost:3000/foo`
-- `src/pages/foo/bar.js` → `localhost:3000/foo/bar`
+The goal of this lesson is not to memorize commands. By the end, you should understand:
 
-## Create your first React Page
+* What Docker is
+* Why it exists
+* What a container is
+* What an image is
+* Container vs VM
+* Docker Engine
+* Docker Hub
+* Dockerfile
+* Registry
+* Basic Docker architecture
+* Your first Docker commands
 
-Create a file at `src/pages/my-react-page.js`:
+---
 
-```jsx title="src/pages/my-react-page.js"
-import React from 'react';
-import Layout from '@theme/Layout';
+# 1. 🧒 Imagine You Built an App
 
-export default function MyReactPage() {
-  return (
-    <Layout>
-      <h1>My React page</h1>
-      <p>This is a React page</p>
-    </Layout>
-  );
-}
+Suppose you write a small Python application.
+
+It works perfectly on your computer.
+
+You send it to your friend.
+
+Your friend runs it and gets:
+
+```text
+ERROR
+Python version mismatch
 ```
 
-A new page is now available at [http://localhost:3000/my-react-page](http://localhost:3000/my-react-page).
+You fix that.
 
-## Create your first Markdown Page
+Then another person tries it:
 
-Create a file at `src/pages/my-markdown-page.md`:
-
-```mdx title="src/pages/my-markdown-page.md"
-# My Markdown page
-
-This is a Markdown page
+```text
+ERROR
+Missing library
 ```
 
-A new page is now available at [http://localhost:3000/my-markdown-page](http://localhost:3000/my-markdown-page).
+Then you deploy it to a server:
+
+```text
+ERROR
+Configuration is different
+```
+
+😭
+
+The problem is:
+
+> **Your application depends on its environment.**
+
+Your application might need:
+
+```text
+Python 3.12
+Flask 3.x
+requests
+specific system libraries
+environment variables
+configuration
+```
+
+Your computer has all of these.
+
+Another computer might not.
+
+---
+
+# 2. 📦 Docker's Big Idea
+
+Docker basically says:
+
+> **"Let's package the application together with everything it needs so it can run consistently."**
+
+Think about moving houses.
+
+Instead of saying:
+
+> "Here is my furniture. Good luck figuring out how to arrange everything."
+
+You put everything into a standardized container:
+
+```text
+📦 Application
+📦 Libraries
+📦 Dependencies
+📦 Configuration
+```
+
+Then you can move that container between environments.
+
+```text
+Your laptop
+     ↓
+   Docker
+     ↓
+📦 Container
+     ↓
+Cloud server
+```
+
+That's the basic idea.
+
+---
+
+# 3. 🐳 So What Exactly Is Docker?
+
+**Docker is a platform for building, packaging, distributing, and running applications in containers.**
+
+The important word is:
+
+# Container
+
+A container is an isolated environment where an application runs.
+
+For example:
+
+```text
+📦 Container
+│
+├── Python
+├── Flask
+├── Application code
+├── Dependencies
+└── Configuration
+```
+
+Docker runs that container using the host operating system's kernel.
+
+---
+
+# 4. 🏠 Container = Small Isolated Environment
+
+Imagine an apartment building.
+
+The building is the computer.
+
+Each apartment is a container.
+
+```text
+🏢 Linux Host
+│
+├── 🏠 Container A
+│    └── Python application
+│
+├── 🏠 Container B
+│    └── Node.js application
+│
+└── 🏠 Container C
+     └── Nginx
+```
+
+Each container is isolated from the others.
+
+They can have different:
+
+* Applications
+* Libraries
+* Dependencies
+* Configuration
+
+Yet they can all run on the same host.
+
+---
+
+# 5. 🤔 Why Not Just Use Virtual Machines?
+
+Excellent question.
+
+Before containers became extremely popular, we commonly used **virtual machines (VMs)**.
+
+A VM looks roughly like:
+
+```text
+Physical Computer
+│
+├── Host OS
+│
+├── VM 1
+│   ├── Guest OS
+│   └── Application
+│
+├── VM 2
+│   ├── Guest OS
+│   └── Application
+│
+└── VM 3
+    ├── Guest OS
+    └── Application
+```
+
+Each VM has its own operating system.
+
+That can be relatively heavy.
+
+Containers work differently:
+
+```text
+Physical Computer
+│
+├── Host OS
+│
+├── Docker
+│
+├── Container 1
+│   └── Application
+│
+├── Container 2
+│   └── Application
+│
+└── Container 3
+    └── Application
+```
+
+Containers share the host's kernel.
+
+So they are generally:
+
+* Faster to start
+* More lightweight
+* Easier to package
+* Easier to deploy at scale
+
+---
+
+# 6. 🧠 Container vs Virtual Machine
+
+Here's the mental model you need:
+
+| Virtual Machine           | Container                 |
+| ------------------------- | ------------------------- |
+| Contains a guest OS       | Shares host kernel        |
+| Usually heavier           | Usually lighter           |
+| Slower startup            | Usually very fast startup |
+| More resource overhead    | Less resource overhead    |
+| Strong OS-level isolation | Process-level isolation   |
+| VM image                  | Container image           |
+
+Don't interpret this as:
+
+> "Containers are always better than VMs."
+
+They're different technologies with different strengths.
+
+And in real cloud environments, **containers frequently run inside VMs**.
+
+For example:
+
+```text
+Cloud
+│
+└── Virtual Machine
+     │
+     └── Docker
+          │
+          ├── Container
+          ├── Container
+          └── Container
+```
+
+---
+
+# 7. 🧩 The Most Important Docker Concepts
+
+You need to understand these six words:
+
+```text
+Image
+Container
+Dockerfile
+Docker Engine
+Registry
+Docker Compose
+```
+
+We'll take them one by one.
+
+---
+
+# 8. 📸 What Is a Docker Image?
+
+An **image** is a packaged, immutable template used to create containers.
+
+Think:
+
+> 🧁 Image = recipe/template
+
+> 🍰 Container = actual running thing created from that template
+
+For example:
+
+```text
+Docker Image
+     ↓
+   run
+     ↓
+Container
+```
+
+You might have an image called:
+
+```text
+nginx
+```
+
+You can create multiple containers from it:
+
+```text
+nginx image
+    │
+    ├── Container 1
+    ├── Container 2
+    └── Container 3
+```
+
+The image itself isn't the running application.
+
+It's the **blueprint**.
+
+---
+
+# 9. 📦 What Is a Container?
+
+A container is a **running instance of an image**.
+
+Think:
+
+```text
+Image
+ ↓
+"Make me a container"
+ ↓
+Container
+```
+
+For example:
+
+```text
+nginx image
+     ↓
+nginx container
+```
+
+You can have:
+
+```text
+Image: nginx
+
+Containers:
+├── website-1
+├── website-2
+└── website-3
+```
+
+---
+
+# 10. 📝 What Is a Dockerfile?
+
+Now we get to something extremely important.
+
+Suppose you want to create your own Docker image.
+
+You need to tell Docker:
+
+> "Start with this base environment, copy my application, install these dependencies, and run this command."
+
+You write those instructions in a:
+
+# Dockerfile
+
+For example:
+
+```dockerfile
+FROM python:3.12
+
+WORKDIR /app
+
+COPY . .
+
+RUN pip install -r requirements.txt
+
+CMD ["python", "app.py"]
+```
+
+Don't worry about understanding every line yet.
+
+We'll study Dockerfiles deeply later.
+
+For now:
+
+```text
+Dockerfile
+     ↓
+ docker build
+     ↓
+Docker Image
+     ↓
+ docker run
+     ↓
+Container
+```
+
+This relationship is **fundamental**.
+
+---
+
+# 11. 🏭 Docker's Factory Analogy
+
+Think about a factory.
+
+### Dockerfile
+
+📋 Instructions for making the product.
+
+### Image
+
+📦 Finished packaged product.
+
+### Container
+
+🚀 Product currently being used.
+
+So:
+
+```text
+Dockerfile
+    ↓
+  BUILD
+    ↓
+ Image
+    ↓
+   RUN
+    ↓
+Container
+```
+
+Memorize this.
+
+---
+
+# 12. 🌎 What Is a Docker Registry?
+
+Suppose you've created an image on your laptop.
+
+Now you want your cloud server to use it.
+
+How do you get it there?
+
+You can upload it to a **container registry**.
+
+A registry is basically a place where container images are stored and distributed.
+
+One popular registry is:
+
+**Docker Hub**
+
+Other examples include cloud-provider registries such as:
+
+* Amazon ECR
+* Azure Container Registry
+* Google Artifact Registry
+
+Conceptually:
+
+```text
+Your computer
+     │
+     │ docker push
+     ↓
+Registry
+     │
+     │ docker pull
+     ↓
+Cloud server
+```
+
+---
+
+# 13. 🐳 What Is Docker Hub?
+
+Docker Hub is a public registry containing Docker images.
+
+You can find images for things like:
+
+```text
+nginx
+redis
+postgres
+python
+node
+ubuntu
+```
+
+Instead of building everything from scratch, you can use an existing image as your starting point.
+
+For example:
+
+```dockerfile
+FROM python:3.12
+```
+
+means:
+
+> "Use the Python 3.12 image as my starting point."
+
+---
+
+# 14. ⚙️ What Is Docker Engine?
+
+Docker needs something to actually manage containers.
+
+That's where the **Docker Engine** comes in.
+
+Simplified:
+
+```text
+You
+ │
+ │ docker run
+ ↓
+Docker CLI
+ │
+ ↓
+Docker Engine
+ │
+ ├── Images
+ ├── Containers
+ ├── Networks
+ └── Volumes
+```
+
+The Docker Engine is the underlying technology that creates and manages containers.
+
+---
+
+# 15. 💻 Docker CLI
+
+When you type:
+
+```bash
+docker run nginx
+```
+
+you're using the **Docker command-line interface (CLI)**.
+
+The CLI communicates with the Docker Engine.
+
+Think:
+
+```text
+You
+ ↓
+Docker CLI
+ ↓
+Docker Engine
+ ↓
+Container
+```
+
+---
+
+# 16. 🚀 Your First Docker Command
+
+Once Docker is installed, try:
+
+```bash
+docker --version
+```
+
+You might get something like:
+
+```text
+Docker version 27.x.x
+```
+
+That tells you Docker is installed.
+
+Then:
+
+```bash
+docker info
+```
+
+This gives information about your Docker installation and engine.
+
+---
+
+# 17. 📋 See Your Docker Images
+
+Run:
+
+```bash
+docker images
+```
+
+This shows images currently stored locally.
+
+You might initially see:
+
+```text
+REPOSITORY    TAG       IMAGE ID
+```
+
+Maybe nothing is there yet.
+
+That's completely fine.
+
+---
+
+# 18. 📦 Download an Image
+
+Let's download an Nginx image:
+
+```bash
+docker pull nginx
+```
+
+Think:
+
+> "Docker, go to a registry and download the `nginx` image."
+
+Then:
+
+```bash
+docker images
+```
+
+You should now see something like:
+
+```text
+REPOSITORY   TAG       IMAGE ID
+nginx        latest    xxxxxxxxx
+```
+
+You've downloaded your first Docker image.
+
+---
+
+# 19. 🚀 Create Your First Container
+
+Now run:
+
+```bash
+docker run nginx
+```
+
+What's happening?
+
+```text
+nginx image
+     ↓
+Docker creates
+     ↓
+nginx container
+     ↓
+nginx starts
+```
+
+If everything works, Nginx starts running inside the container.
+
+But there's an interesting problem.
+
+Your terminal may appear to be "stuck."
+
+It's not actually stuck.
+
+The container is running in the foreground.
+
+Press:
+
+```text
+Ctrl + C
+```
+
+to stop it.
+
+---
+
+# 20. 🏃 Run It in the Background
+
+Usually, servers need to keep running while you continue using your terminal.
+
+Use:
+
+```bash
+docker run -d nginx
+```
+
+`-d` means:
+
+**detached mode**
+
+In simple terms:
+
+> "Run this container in the background."
+
+Docker will return a container ID.
+
+---
+
+# 21. 👀 See Running Containers
+
+Now:
+
+```bash
+docker ps
+```
+
+You'll see something similar to:
+
+```text
+CONTAINER ID   IMAGE   COMMAND   STATUS
+abc123         nginx   ...       Up ...
+```
+
+This means:
+
+> "Show me currently running containers."
+
+---
+
+# 22. 🛑 Stop a Container
+
+Suppose the container ID is:
+
+```text
+abc123
+```
+
+You can stop it:
+
+```bash
+docker stop abc123
+```
+
+Or you can use its name:
+
+```bash
+docker stop <container-name>
+```
+
+Then:
+
+```bash
+docker ps
+```
+
+It won't appear because it isn't running anymore.
+
+---
+
+# 23. 👀 Where Did My Container Go?
+
+Run:
+
+```bash
+docker ps -a
+```
+
+The `-a` means:
+
+> Show **all** containers, including stopped ones.
+
+You'll see your previous container.
+
+This distinction is important:
+
+```text
+docker ps
+```
+
+= running containers
+
+```text
+docker ps -a
+```
+
+= all containers
+
+---
+
+# 24. 🗑️ Remove a Container
+
+If you don't need the stopped container anymore:
+
+```bash
+docker rm <container-id>
+```
+
+Then:
+
+```bash
+docker ps -a
+```
+
+It should be gone.
+
+---
+
+# 25. 🧠 Important Docker Commands
+
+For now, memorize only these:
+
+```bash
+docker --version
+docker info
+docker images
+docker pull
+docker run
+docker ps
+docker ps -a
+docker stop
+docker rm
+```
+
+Don't try to memorize 100 Docker commands.
+
+Understand what each one means.
+
+---
+
+# 26. 🌐 But How Do I Access Nginx?
+
+This is where Docker networking begins.
+
+If you run:
+
+```bash
+docker run -d nginx
+```
+
+Nginx is running **inside the container**.
+
+That doesn't automatically mean you can access it from your browser through your computer's port 80.
+
+We need **port mapping**.
+
+Run:
+
+```bash
+docker run -d -p 8080:80 nginx
+```
+
+The important part is:
+
+```text
+8080:80
+```
+
+It means:
+
+```text
+Host port 8080
+        ↓
+Container port 80
+```
+
+Think:
+
+```text
+Your computer
+localhost:8080
+      │
+      ↓
+Docker
+      │
+      ↓
+Container
+port 80
+      │
+      ↓
+Nginx
+```
+
+Now open:
+
+```text
+http://localhost:8080
+```
+
+in your browser.
+
+You should see the Nginx welcome page.
+
+🎉 You just exposed a containerized web server to your computer.
+
+---
+
+# 27. 🧠 Port Mapping
+
+This syntax:
+
+```bash
+-p HOST_PORT:CONTAINER_PORT
+```
+
+is incredibly important.
+
+For example:
+
+```bash
+-p 8080:80
+```
+
+means:
+
+```text
+Host       Container
+8080  →    80
+```
+
+Another example:
+
+```bash
+-p 3000:3000
+```
+
+means:
+
+```text
+Host       Container
+3000  →    3000
+```
+
+---
+
+# 28. 🔍 See Container Details
+
+You can inspect a container:
+
+```bash
+docker inspect <container-id>
+```
+
+This gives you a huge amount of information.
+
+For example:
+
+* Network configuration
+* IP address
+* Mounts
+* Environment
+* Image
+* Ports
+* Runtime configuration
+
+We'll use this heavily later for troubleshooting.
+
+---
+
+# 29. 📜 View Container Logs
+
+Suppose your application is running but something isn't working.
+
+You can look at its logs:
+
+```bash
+docker logs <container-id>
+```
+
+This is extremely important.
+
+Think:
+
+> "Container, tell me what happened."
+
+For example:
+
+```bash
+docker logs my-container
+```
+
+We'll later use this for debugging real applications.
+
+---
+
+# 30. 🖥️ Execute a Command Inside a Container
+
+You can enter a running container using:
+
+```bash
+docker exec -it <container-id> bash
+```
+
+Sometimes the container doesn't have `bash`, so you'll use:
+
+```bash
+docker exec -it <container-id> sh
+```
+
+Now you're effectively inside the container's environment.
+
+For example:
+
+```bash
+ls
+```
+
+might show:
+
+```text
+bin
+etc
+usr
+var
+...
+```
+
+You can then exit:
+
+```bash
+exit
+```
+
+This is extremely useful for troubleshooting.
+
+---
+
+# 🧠 The Docker Mental Model
+
+This is what I want you to understand before we go any further:
+
+```text
+                    Docker
+                       │
+          ┌────────────┼────────────┐
+          ↓            ↓            ↓
+       Images      Containers     Networks
+          │            │
+          │            ↓
+          │          Running
+          │          applications
+          │
+          ↓
+     Built from
+     Dockerfile
+          │
+          ↓
+      Registry
+```
+
+And the most important pipeline:
+
+```text
+Dockerfile
+     │
+     │ docker build
+     ↓
+   Image
+     │
+     │ docker run
+     ↓
+ Container
+     │
+     │ docker push
+     ↓
+ Registry
+     │
+     │ docker pull
+     ↓
+ Another machine
+```
+
+---
+
+# 🎯 Your First Docker Lab
+
+If Docker is installed, don't just read. Do this yourself.
+
+### Step 1
+
+```bash
+docker --version
+```
+
+### Step 2
+
+```bash
+docker pull nginx
+```
+
+### Step 3
+
+```bash
+docker images
+```
+
+### Step 4
+
+```bash
+docker run -d --name my-nginx -p 8080:80 nginx
+```
+
+Notice that we gave our container a name:
+
+```text
+my-nginx
+```
+
+Now:
+
+```bash
+docker ps
+```
+
+### Step 5
+
+Open:
+
+```text
+http://localhost:8080
+```
+
+### Step 6
+
+Check its logs:
+
+```bash
+docker logs my-nginx
+```
+
+### Step 7
+
+Inspect it:
+
+```bash
+docker inspect my-nginx
+```
+
+### Step 8
+
+Enter the container:
+
+```bash
+docker exec -it my-nginx bash
+```
+
+Then:
+
+```bash
+ls
+```
+
+and:
+
+```bash
+cat /etc/os-release
+```
+
+Then:
+
+```bash
+exit
+```
+
+### Step 9
+
+Stop it:
+
+```bash
+docker stop my-nginx
+```
+
+### Step 10
+
+Check all containers:
+
+```bash
+docker ps -a
+```
+
+### Step 11
+
+Remove it:
+
+```bash
+docker rm my-nginx
+```
+
+---
+
+# 🧪 Challenge — Don't Look Up the Commands
+
+After completing the lab, see if you can answer these **without looking back**:
+
+### 1.
+
+What is Docker?
+
+### 2.
+
+What is a container?
+
+### 3.
+
+What is an image?
+
+### 4.
+
+What's the difference between an image and a container?
+
+### 5.
+
+What creates an image?
+
+### 6.
+
+Where can Docker images be stored/shared?
+
+### 7.
+
+What does this mean?
+
+```bash
+-p 8080:80
+```
+
+### 8.
+
+What's the difference between:
+
+```bash
+docker ps
+```
+
+and:
+
+```bash
+docker ps -a
+```
+
+### 9.
+
+What does this do?
+
+```bash
+docker logs my-nginx
+```
+
+### 10.
+
+What does this do?
+
+```bash
+docker exec -it my-nginx bash
+```
+
+---
+
+## 🗺️ Where We're Going Next
+
+This first lesson gives you the basic mental model.
+
+Next we'll go deeper into:
+
+```text
+Lesson 1
+What is Docker?                  ← YOU ARE HERE
+        ↓
+Lesson 2
+Images & Containers
+        ↓
+Lesson 3
+Dockerfiles
+        ↓
+Lesson 4
+Build your own image
+        ↓
+Lesson 5
+Docker networking
+        ↓
+Lesson 6
+Docker volumes & persistent data
+        ↓
+Lesson 7
+Environment variables & secrets
+        ↓
+Lesson 8
+Docker Compose
+        ↓
+Lesson 9
+Multi-container applications
+        ↓
+Lesson 10
+Docker security
+        ↓
+Lesson 11
+Docker in CI/CD
+        ↓
+Lesson 12
+Docker + AWS
+        ↓
+Lesson 13
+Docker + Kubernetes
+```
+
+**Don't jump to Kubernetes yet.** If you truly understand images, containers, networking, volumes, Dockerfiles, and Compose first, Kubernetes will make dramatically more sense later.

@@ -3,6 +3,16 @@ facebook:
   permalink: /facebook
   description: Facebook tag description
 
+cloud-engineer:
+  label: Cloud Engineer
+  permalink: /cloud-engineer
+  description: Career guidance for becoming a cloud engineer
+
+cloudopia:
+  label: Cloudopia
+  permalink: /cloudopia
+  description: Posts from the Cloudopia team
+
 hello:
   label: Hello
   permalink: /hello

@@ -1,3 +1,20 @@
+faseeh:
+  name: Faseeh Ahmad
+  title: Co-author, The Cloud Mastery Playbook
+  url: https://github.com
+  page: true
+  socials:
+    github: faseeh-ahmad-profile
+    linkedin: faseehahmd
+
+alirehan:
+  name: Ali Rehan
+  title: Co-author, The Cloud Mastery Playbook
+  url: https://github.com
+  page: true
+  socials:
+    github: alirehan
+
 yangshun:
   name: Yangshun Tay
   title: Ex-Meta Staff Engineer, Co-founder GreatFrontEnd
