@@ -1,0 +1,605 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Rubik:wght@400;500;600;700&display=swap');
+
+/**
+ * Design tokens — interpreted from DESIGN-sentry.md.
+ * The landing page (index.tsx) and the book interface (docs/blog) both
+ * build on this token layer; the book lives on the light canvas.
+ */
+:root {
+  --sp-primary: #150f23;
+  --sp-ink-deep: #1f1633;
+  --sp-night: #150f23;
+  --sp-on-primary: #ffffff;
+  --sp-lime: #c2ef4e;
+  --sp-pink: #fa7faa;
+  --sp-violet: #6a5fc1;
+  --sp-violet-deep: #422082;
+  --sp-violet-mid: #79628c;
+  --sp-canvas-light: #ffffff;
+  --sp-canvas-tint: #faf9fc;
+  --sp-press-light: #f0f0f0;
+  --sp-hairline-violet: #362d59;
+  --sp-hairline-cool: #cfcfdb;
+  --sp-hairline-cloud: #e5e7eb;
+  --sp-on-dark-muted: #bdb8c0;
+  --sp-on-dark-faint: rgba(255, 255, 255, 0.14);
+  --sp-ink-muted: #4b4460;
+
+  --sp-font-display: 'Space Grotesk', 'Rubik', system-ui, sans-serif;
+  --sp-font-ui: 'Rubik', -apple-system, system-ui, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --sp-font-code: 'Monaco', 'Menlo', 'Consolas', 'Ubuntu Mono', monospace;
+
+  --sp-radius-xs: 4px;
+  --sp-radius-sm: 6px;
+  --sp-radius-md: 8px;
+  --sp-radius-lg: 10px;
+  --sp-radius-xl: 12px;
+  --sp-radius-xxl: 18px;
+
+  --sp-shadow-float: rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.1) 0 4px 6px -4px;
+  --sp-shadow-press: rgba(0, 0, 0, 0.18) 0 0.5rem 1.5rem;
+
+  /* ---- Infima bridge: the book interface on the light canvas ---- */
+  --ifm-font-size-base: 16px;
+  --ifm-line-height-base: 1.65;
+  --ifm-font-family-base: var(--sp-font-ui);
+  --ifm-font-family-monospace: var(--sp-font-code);
+  --ifm-heading-font-family: var(--sp-font-display);
+  --ifm-heading-font-weight: 700;
+  --ifm-heading-color: var(--sp-ink-deep);
+  --ifm-font-color-base: var(--sp-ink-deep);
+  --ifm-background-color: var(--sp-canvas-light);
+  --ifm-background-surface-color: var(--sp-canvas-light);
+
+  --ifm-color-primary: var(--sp-violet-deep);
+  --ifm-color-primary-dark: #371b6e;
+  --ifm-color-primary-darker: #2f175d;
+  --ifm-color-primary-darkest: #26124b;
+  --ifm-color-primary-light: #553a97;
+  --ifm-color-primary-lighter: #6853ab;
+  --ifm-color-primary-lightest: #9d8ec9;
+
+  --ifm-color-emphasis-0: #ffffff;
+  --ifm-color-emphasis-100: #f4f3f7;
+  --ifm-color-emphasis-200: var(--sp-hairline-cloud);
+  --ifm-color-emphasis-300: var(--sp-hairline-cool);
+  --ifm-color-emphasis-400: #a9a3b8;
+  --ifm-color-emphasis-500: #7d7691;
+  --ifm-color-emphasis-600: #5b5470;
+  --ifm-color-emphasis-700: #443d59;
+  --ifm-color-emphasis-800: #2e2840;
+  --ifm-color-emphasis-900: var(--sp-ink-deep);
+
+  --ifm-link-color: var(--sp-violet);
+  --ifm-link-hover-color: var(--sp-violet-deep);
+
+  --ifm-code-background: #f4f3f7;
+  --ifm-code-color: var(--sp-violet-deep);
+  --ifm-code-border-radius: var(--sp-radius-xs);
+  --docusaurus-highlighted-code-line-bg: rgba(194, 239, 78, 0.22);
+
+  --ifm-table-border-color: var(--sp-hairline-cloud);
+  --ifm-blockquote-color: var(--sp-ink-muted);
+
+  --ifm-tabs-color-active: var(--sp-violet-deep);
+  --ifm-tabs-color-active-border: var(--sp-violet-deep);
+
+  --ifm-navbar-height: 64px;
+  --ifm-navbar-background-color: var(--sp-canvas-light);
+  --ifm-navbar-link-color: var(--sp-ink-deep);
+  --ifm-navbar-link-hover-color: var(--sp-violet);
+  --ifm-footer-background-color: var(--sp-canvas-light);
+  --ifm-footer-color: var(--sp-ink-muted);
+  --ifm-footer-link-color: #5b5470;
+  --ifm-footer-title-color: var(--sp-ink-deep);
+
+  --ifm-menu-color: #443d59;
+  --ifm-menu-color-active: var(--sp-violet-deep);
+  --ifm-menu-color-background-active: rgba(106, 95, 193, 0.08);
+  --ifm-menu-color-background-hover: #f4f3f7;
+
+  --ifm-breadcrumb-color-background: transparent;
+  --ifm-toc-link-color: var(--sp-ink-muted);
+  --ifm-toc-link-color-active: var(--sp-violet-deep);
+
+  --ifm-alert-border-width: 1px;
+  --ifm-button-border-width: 0px;
+}
+
+/* Console-style keyboard focus ring — the only blue in the system. */
+:focus-visible {
+  outline: 2px solid rgba(59, 130, 246, 0.5);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: rgba(194, 239, 78, 0.45);
+  color: var(--sp-ink-deep);
+}
+
+/* The landing page ships its own navbar + footer; hide the global chrome there only. */
+body.landing-page .navbar,
+body.landing-page .footer {
+  display: none;
+}
+
+/* ==================== Navbar (nav-bar-light) ==================== */
+
+.navbar {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--sp-hairline-cloud);
+  box-shadow: none;
+}
+
+.navbar__brand {
+  font-family: var(--sp-font-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--sp-ink-deep);
+}
+
+.navbar__logo {
+  height: 30px;
+}
+
+.navbar__link {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.navbar__link--active {
+  font-weight: 600;
+}
+
+.navbar__item.dropdown .navbar__link--active {
+  color: var(--sp-ink-deep);
+}
+
+/* Filled primary CTA in the navbar (button-primary token). */
+.navbar .navbar-cta.navbar__link {
+  background: var(--sp-primary);
+  color: var(--sp-on-primary);
+  font-family: var(--sp-font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  border-radius: var(--sp-radius-md);
+  padding: 8px 16px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.navbar .navbar-cta.navbar__link:hover {
+  color: var(--sp-on-primary);
+  transform: translateY(-1px);
+  box-shadow: var(--sp-shadow-float);
+}
+
+.navbar-sidebar {
+  background: var(--sp-canvas-light);
+}
+
+.navbar-sidebar .navbar-cta.navbar__link {
+  display: inline-flex;
+  margin: 8px 0;
+}
+
+/* ==================== Buttons (button-primary / inverted) ==================== */
+
+.button {
+  font-family: var(--sp-font-ui);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  border-radius: var(--sp-radius-md);
+  padding: 0.75rem 1.25rem;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.button--primary {
+  background: var(--sp-primary);
+  color: var(--sp-on-primary);
+  border: none;
+}
+
+.button--primary:hover,
+.button--primary:active {
+  background: #2a2140;
+  color: var(--sp-on-primary);
+}
+
+.button--secondary {
+  background: var(--sp-canvas-light);
+  color: var(--sp-ink-deep);
+  border: 1px solid var(--sp-hairline-cool);
+}
+
+.button--secondary:hover {
+  background: var(--sp-press-light);
+  border-color: var(--sp-ink-deep);
+  color: var(--sp-ink-deep);
+}
+
+.button--sm {
+  font-size: 13px;
+  padding: 0.5rem 1rem;
+}
+
+.button--link {
+  color: var(--sp-violet);
+}
+
+/* ==================== Docs layout chrome ==================== */
+
+.theme-doc-sidebar-container {
+  border-right: 1px solid var(--sp-hairline-cloud) !important;
+}
+
+/* ---- Sidebar menu ---- */
+
+.menu {
+  font-size: 14px;
+  font-weight: 500;
+  padding: 1rem 0.75rem 2rem;
+}
+
+.menu__link {
+  border-radius: var(--sp-radius-md);
+  padding: 7px 12px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.menu__link:hover {
+  background: var(--ifm-menu-color-background-hover);
+  color: var(--sp-ink-deep);
+}
+
+.menu__link--active:not(.menu__list-item--collapsed) {
+  background: var(--ifm-menu-color-background-active);
+  font-weight: 600;
+}
+
+/* Scarce lime: a single 3px lime marker on the active chapter. */
+.menu__link--active {
+  box-shadow: inset 3px 0 0 0 var(--sp-lime);
+}
+
+.menu__link--sublist-caret::after,
+.menu__caret::before {
+  border-color: currentColor;
+}
+
+.menu__list-item--collapsed .menu__link--sublist {
+  color: var(--sp-ink-muted);
+}
+
+/* ---- Table of contents ---- */
+
+.table-of-contents {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.table-of-contents__link {
+  border-left: 2px solid transparent;
+  padding-left: 12px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.table-of-contents__link:hover {
+  color: var(--sp-violet);
+}
+
+.table-of-contents__link--active {
+  color: var(--sp-violet-deep);
+  font-weight: 600;
+  border-left-color: var(--sp-lime);
+}
+
+/* ---- Breadcrumbs ---- */
+
+.breadcrumbs__link {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--sp-ink-muted);
+  border-radius: var(--sp-radius-xs);
+  transition: color 0.15s ease;
+}
+
+.breadcrumbs__link:hover {
+  color: var(--sp-violet);
+  background: var(--ifm-menu-color-background-hover);
+}
+
+.breadcrumbs__item--active .breadcrumbs__link {
+  color: var(--sp-ink-deep);
+  background: transparent;
+}
+
+/* ==================== Article (the book pages) ==================== */
+
+.markdown {
+  color: var(--sp-ink-deep);
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4,
+.markdown h5,
+.markdown h6 {
+  letter-spacing: -0.4px;
+}
+
+.markdown h1 {
+  font-size: 2.4em;
+  line-height: 1.1;
+}
+
+.markdown h2 {
+  font-size: 1.7em;
+  line-height: 1.2;
+}
+
+.markdown h3 {
+  font-size: 1.35em;
+  line-height: 1.25;
+}
+
+.markdown a {
+  color: var(--sp-violet);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.markdown a:hover {
+  color: var(--sp-violet-deep);
+}
+
+.markdown hr {
+  border-color: var(--sp-hairline-cloud);
+}
+
+.markdown blockquote {
+  background: var(--sp-canvas-tint);
+  border-left: 3px solid var(--sp-violet);
+  border-radius: 0 var(--sp-radius-md) var(--sp-radius-md) 0;
+  color: var(--sp-ink-muted);
+}
+
+.markdown table {
+  font-size: 14.5px;
+}
+
+.markdown table th {
+  background: var(--sp-canvas-tint);
+  font-weight: 600;
+  font-size: 13.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+/* Inline code: quiet violet-tinted chip. */
+.markdown :not(pre) > code {
+  border: 1px solid var(--sp-hairline-cloud);
+  padding: 0.1em 0.4em;
+  white-space: nowrap;
+}
+
+.markdown pre code {
+  border: none;
+  background: transparent;
+}
+
+.theme-last-updated {
+  color: var(--sp-ink-muted);
+  font-size: 13px;
+}
+
+.theme-edit-this-page {
+  color: var(--sp-ink-muted);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.theme-edit-this-page:hover {
+  color: var(--sp-violet);
+}
+
+/* ==================== Code blocks (code-block token: night canvas) ==================== */
+
+.theme-code-block {
+  border-radius: var(--sp-radius-md);
+  box-shadow: none;
+}
+
+div[class^='codeBlockContainer'],
+div[class^='codeBlockContent'],
+.theme-code-block pre {
+  border-radius: var(--sp-radius-md);
+}
+
+span[class^='codeBlockTitle'] {
+  background: #241a3f;
+  color: var(--sp-on-dark-muted);
+  border-bottom: 1px solid var(--sp-hairline-violet);
+  font-family: var(--sp-font-code);
+  font-size: 12px;
+  letter-spacing: 0.4px;
+}
+
+.theme-code-block button {
+  color: var(--sp-on-dark-muted);
+}
+
+.theme-code-block button:hover {
+  background: var(--sp-on-dark-faint);
+  color: var(--sp-on-primary);
+}
+
+/* ==================== Admonitions ==================== */
+
+.alert {
+  border-radius: var(--sp-radius-xl);
+  box-shadow: none;
+  padding: 16px 20px;
+}
+
+.alert--note {
+  --ifm-alert-background-color: rgba(106, 95, 193, 0.07);
+  --ifm-alert-border-color: rgba(106, 95, 193, 0.35);
+  --ifm-alert-color: var(--sp-ink-deep);
+}
+
+.alert--info {
+  --ifm-alert-background-color: rgba(121, 98, 140, 0.08);
+  --ifm-alert-border-color: rgba(121, 98, 140, 0.4);
+  --ifm-alert-color: var(--sp-ink-deep);
+}
+
+.alert--tip {
+  --ifm-alert-background-color: rgba(194, 239, 78, 0.14);
+  --ifm-alert-border-color: rgba(194, 239, 78, 0.6);
+  --ifm-alert-color: var(--sp-ink-deep);
+}
+
+.alert--success {
+  --ifm-alert-background-color: rgba(194, 239, 78, 0.1);
+  --ifm-alert-border-color: rgba(194, 239, 78, 0.55);
+  --ifm-alert-color: var(--sp-ink-deep);
+}
+
+.alert--warning {
+  --ifm-alert-background-color: rgba(250, 127, 170, 0.1);
+  --ifm-alert-border-color: rgba(250, 127, 170, 0.5);
+  --ifm-alert-color: var(--sp-ink-deep);
+}
+
+.alert--danger {
+  --ifm-alert-background-color: rgba(250, 127, 170, 0.16);
+  --ifm-alert-border-color: var(--sp-pink);
+  --ifm-alert-color: var(--sp-ink-deep);
+}
+
+.alert a {
+  color: var(--sp-violet-deep);
+}
+
+/* ==================== Tabs ==================== */
+
+.tabs {
+  border-bottom: 1px solid var(--sp-hairline-cloud);
+  font-weight: 500;
+}
+
+.tab-item {
+  font-size: 14.5px;
+}
+
+.tab-item--active {
+  font-weight: 600;
+}
+
+/* ==================== Details / accordion ==================== */
+
+.details {
+  border: 1px solid var(--sp-hairline-cloud);
+  border-radius: var(--sp-radius-md);
+  background: var(--sp-canvas-light);
+}
+
+.details > summary {
+  font-weight: 600;
+}
+
+.details > summary:hover {
+  background: var(--sp-canvas-tint);
+}
+
+/* ==================== Pagination nav (prev / next chapter cards) ==================== */
+
+.pagination-nav__link {
+  border: 1px solid var(--sp-hairline-cloud);
+  border-radius: var(--sp-radius-xl);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.pagination-nav__link:hover {
+  border-color: var(--sp-hairline-cool);
+  box-shadow: var(--sp-shadow-float);
+  transform: translateY(-2px);
+}
+
+.pagination-nav__sublabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--sp-violet-mid);
+}
+
+.pagination-nav__label {
+  font-family: var(--sp-font-display);
+  font-weight: 700;
+  color: var(--sp-ink-deep);
+}
+
+/* ==================== Footer (footer-light + lime squiggle) ==================== */
+
+.footer {
+  background: var(--sp-canvas-light);
+  border-top: none;
+  padding-top: 40px;
+}
+
+/* Hand-drawn lime squiggle divider above the footer. */
+.footer::before {
+  content: '';
+  display: block;
+  height: 12px;
+  max-width: 1152px;
+  margin: 0 auto 40px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 12'%3E%3Cpath d='M0 6 Q 7 0 14 6 T 28 6' fill='none' stroke='%23c2ef4e' stroke-width='3'/%3E%3C/svg%3E")
+    repeat-x left center / 28px 12px;
+}
+
+.footer__title {
+  font-family: var(--sp-font-display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--sp-ink-deep);
+}
+
+.footer__link-item {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.footer__link-item:hover {
+  color: var(--sp-violet);
+}
+
+.footer__bottom {
+  font-size: 13px;
+  color: var(--sp-violet-mid);
+}
+
+.footer__copyright {
+  font-size: 13px;
+  color: var(--sp-violet-mid);
+}
+
+/* ==================== Responsive ==================== */
+
+@media (max-width: 996px) {
+  .footer::before {
+    margin: 0 auto 28px;
+  }
+}

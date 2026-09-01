@@ -1,0 +1,922 @@
+---
+sidebar_position: 2
+---
+
+# 🐧 The Linux Filesystem
+
+Now we learn one of the **most important Linux concepts**: how Linux organizes everything on your computer.
+
+I'll explain it like you're 5, but we won't dumb down the actual concepts. The goal is for you to eventually look at a cloud server and know exactly where things belong.
+
+---
+
+# 🏠 1. Imagine Linux as a Giant House
+
+Imagine your computer is a giant house.
+
+In Windows, you might see:
+
+```text
+C:\
+├── Users
+├── Program Files
+└── Windows
+```
+
+Linux does things differently.
+
+Linux starts from **one giant starting point**:
+
+```text
+/
+```
+
+This is called the **root of the filesystem**.
+
+Think of `/` as:
+
+> 🏠 The main entrance to the entire Linux house.
+
+Everything else lives underneath it.
+
+---
+
+# 🌳 2. The Linux Filesystem Tree
+
+A simplified Linux filesystem looks like this:
+
+```text
+/
+├── bin
+├── boot
+├── dev
+├── etc
+├── home
+├── lib
+├── media
+├── mnt
+├── opt
+├── proc
+├── root
+├── run
+├── sbin
+├── srv
+├── sys
+├── tmp
+├── usr
+└── var
+```
+
+At first this looks scary.
+
+Don't memorize everything yet.
+
+For cloud engineering, these are particularly important:
+
+```text
+/
+├── etc
+├── home
+├── root
+├── tmp
+├── usr
+├── var
+├── dev
+├── proc
+└── opt
+```
+
+Let's understand them one by one.
+
+---
+
+# 🌍 3. `/` — The Root
+
+The `/` directory is the **top of the filesystem**.
+
+For example:
+
+```bash
+cd /
+```
+
+Now:
+
+```bash
+pwd
+```
+
+You should get:
+
+```text
+/
+```
+
+And:
+
+```bash
+ls
+```
+
+might show:
+
+```text
+bin
+boot
+dev
+etc
+home
+lib
+opt
+proc
+root
+run
+sbin
+tmp
+usr
+var
+```
+
+Think:
+
+```text
+                    /
+                    │
+        ┌───────────┼───────────┐
+        ↓           ↓           ↓
+      home         etc         var
+        │
+        ↓
+      user
+```
+
+Everything begins at `/`.
+
+---
+
+# 🏡 4. `/home` — Users' Homes
+
+Remember when we used:
+
+```bash
+cd ~
+```
+
+?
+
+Your `~` points to your user's home directory.
+
+For example:
+
+```text
+/home/alex
+```
+
+The structure might look like:
+
+```text
+/home
+└── alex
+    ├── Documents
+    ├── Downloads
+    ├── Pictures
+    └── cloud
+```
+
+Each normal user generally gets a home directory.
+
+You can check:
+
+```bash
+cd /home
+ls
+```
+
+You might see:
+
+```text
+alex
+```
+
+Then:
+
+```bash
+cd alex
+```
+
+That's your home.
+
+---
+
+# 👑 5. `/root` — The Root User's Home
+
+Here's an important distinction:
+
+### `/`
+
+means:
+
+> The root of the entire filesystem.
+
+### `/root`
+
+means:
+
+> The home directory of the **root user**.
+
+These are completely different things.
+
+```text
+/
+└── root/
+```
+
+Don't confuse:
+
+```text
+/
+```
+
+with:
+
+```text
+/root
+```
+
+Think:
+
+> `/` = the whole house
+> `/root` = the administrator's bedroom
+
+---
+
+# ⚙️ 6. `/etc` — Configuration
+
+This directory is **extremely important for system administration**.
+
+`/etc` contains system configuration files.
+
+For example:
+
+```text
+/etc
+├── hosts
+├── hostname
+├── ssh
+├── systemd
+├── passwd
+└── ...
+```
+
+You can look at it:
+
+```bash
+ls /etc
+```
+
+You'll see many files and directories.
+
+For example:
+
+```bash
+cat /etc/hostname
+```
+
+This usually displays your computer's hostname.
+
+You can also inspect:
+
+```bash
+cat /etc/hosts
+```
+
+We'll learn exactly what that file does when we study networking.
+
+### 🧠 Remember:
+
+```text
+/etc = configuration
+```
+
+When you're troubleshooting a Linux server, you'll visit `/etc` **a lot**.
+
+---
+
+# 📝 7. `/var` — Things That Change
+
+`/var` stands for **variable data**.
+
+Think:
+
+> "Stuff that changes while the computer is running."
+
+It contains things such as:
+
+* Logs
+* Caches
+* Application data
+* Spool files
+
+One especially important directory:
+
+```text
+/var/log
+```
+
+That's where many Linux logs live.
+
+Try:
+
+```bash
+ls /var/log
+```
+
+You may see things like:
+
+```text
+syslog
+auth.log
+kern.log
+...
+```
+
+The exact files depend on your Linux distribution.
+
+Later, when we learn:
+
+```bash
+journalctl
+```
+
+and troubleshooting, `/var/log` will become very important.
+
+### 🧠 Remember:
+
+```text
+/var = changing data
+```
+
+---
+
+# 🗑️ 8. `/tmp` — Temporary Stuff
+
+`/tmp` is for **temporary files**.
+
+Imagine your desk.
+
+You put something there temporarily while working on a project.
+
+That's `/tmp`.
+
+Try:
+
+```bash
+ls /tmp
+```
+
+You may see various temporary files.
+
+Programs often use `/tmp` for temporary data.
+
+### 🧠 Remember:
+
+```text
+/tmp = temporary files
+```
+
+Don't treat `/tmp` as permanent storage.
+
+---
+
+# 🧰 9. `/usr` — User-Space Programs & Data
+
+This one can be confusing.
+
+Historically, `/usr` was associated with "user" programs/data, but don't think of it simply as "my personal files."
+
+Modern Linux systems commonly have things like:
+
+```text
+/usr
+├── bin
+├── sbin
+├── lib
+├── share
+└── local
+```
+
+For example:
+
+```bash
+ls /usr/bin
+```
+
+You'll see **lots** of programs.
+
+Your system may have commands such as:
+
+```text
+python3
+git
+curl
+grep
+ssh
+```
+
+located somewhere under `/usr`.
+
+You can find where a command comes from with:
+
+```bash
+which ls
+```
+
+or, on many systems:
+
+```bash
+which python3
+```
+
+You might get:
+
+```text
+/usr/bin/ls
+```
+
+### 🧠 Remember:
+
+```text
+/usr = many installed programs and shared data
+```
+
+---
+
+# 🧰 10. `/bin` — Essential Commands
+
+Historically, `/bin` contained essential user commands.
+
+For example:
+
+```text
+/bin
+├── ls
+├── cp
+├── mv
+├── rm
+└── ...
+```
+
+On many modern Linux distributions, `/bin` is actually a symbolic link to something like:
+
+```text
+/usr/bin
+```
+
+You don't need to worry about that yet.
+
+Just remember:
+
+> `/bin` is associated with essential command-line programs.
+
+---
+
+# 🔧 11. `/sbin` — System Administration Commands
+
+Similarly:
+
+```text
+/sbin
+```
+
+traditionally contains system-administration programs.
+
+For example, commands related to:
+
+* Networking
+* System management
+* Filesystems
+
+Modern distributions may also merge `/sbin` into `/usr/sbin`.
+
+Again, don't get stuck on the historical details.
+
+Remember:
+
+```text
+/bin  → general essential commands
+/sbin → system administration commands
+```
+
+---
+
+# 🧩 12. `/dev` — Devices
+
+This one is fascinating.
+
+Linux treats many hardware devices like files.
+
+That's why:
+
+```text
+/dev
+```
+
+contains device representations.
+
+Try:
+
+```bash
+ls /dev
+```
+
+You'll see things like:
+
+```text
+null
+zero
+random
+tty
+...
+```
+
+You might see disks such as:
+
+```text
+sda
+nvme0n1
+```
+
+depending on the machine.
+
+### Why should a cloud engineer care?
+
+Because cloud servers have:
+
+* Virtual disks
+* Block devices
+* Network devices
+
+When you're managing storage on a cloud VM, `/dev` becomes important.
+
+---
+
+# 🧠 13. `/proc` — Information About the Running System
+
+`/proc` is special.
+
+It isn't a normal directory full of ordinary files sitting on your disk.
+
+Linux creates much of its contents dynamically to expose information about:
+
+* Processes
+* Memory
+* CPU
+* Kernel state
+
+Try:
+
+```bash
+ls /proc
+```
+
+You'll see many numbers:
+
+```text
+1
+2
+3
+...
+```
+
+Those numbers are often **process IDs (PIDs)**.
+
+For example:
+
+```bash
+cat /proc/cpuinfo
+```
+
+gives information about your CPU.
+
+Try:
+
+```bash
+cat /proc/meminfo
+```
+
+You'll get memory information.
+
+### 🧠 Remember:
+
+```text
+/proc = information about the running Linux system
+```
+
+This will become extremely useful when we learn process troubleshooting.
+
+---
+
+# 💾 14. `/boot` — Boot Files
+
+When a computer starts, Linux needs certain files to boot.
+
+Those are stored under:
+
+```text
+/boot
+```
+
+You might see:
+
+```text
+vmlinuz...
+initramfs...
+grub...
+```
+
+You don't need to modify these as a beginner.
+
+Just remember:
+
+```text
+/boot = files needed for booting Linux
+```
+
+---
+
+# 📦 15. `/opt` — Optional/Additional Software
+
+`/opt` is commonly used for additional or third-party software.
+
+For example:
+
+```text
+/opt/my-application
+```
+
+could contain an application installed outside the standard system locations.
+
+Think:
+
+> "Extra software lives here."
+
+---
+
+# 🔌 16. `/mnt` and `/media`
+
+These directories are commonly associated with mounting filesystems.
+
+### `/mnt`
+
+Often used as a temporary/manual mount point.
+
+Example concept:
+
+```text
+/mnt/backup
+```
+
+### `/media`
+
+Commonly used for automatically mounted removable media.
+
+For cloud engineering, you'll eventually need to understand **mounting disks**, so these directories will make more sense later.
+
+---
+
+# 🚀 17. `/srv`
+
+`/srv` can be used for data served by system services.
+
+For example, a server might store certain website/service data under:
+
+```text
+/srv
+```
+
+It's less important for you right now than `/etc`, `/var`, `/home`, and `/usr`.
+
+---
+
+# 🧠 The Big Cheat Sheet
+
+Don't memorize every directory today.
+
+Memorize this:
+
+| Directory | Think                          |
+| --------- | ------------------------------ |
+| `/`       | 🌍 Everything                  |
+| `/home`   | 🏠 Normal users                |
+| `/root`   | 👑 Root user's home            |
+| `/etc`    | ⚙️ Configuration               |
+| `/var`    | 📈 Changing data/logs          |
+| `/tmp`    | 🗑️ Temporary files            |
+| `/usr`    | 🧰 Programs/shared data        |
+| `/bin`    | 🔧 Essential commands          |
+| `/sbin`   | 🛠️ System commands            |
+| `/dev`    | 💾 Devices                     |
+| `/proc`   | 🧠 Running system/process info |
+| `/boot`   | 🚀 Boot files                  |
+| `/opt`    | 📦 Optional software           |
+| `/mnt`    | 🔌 Mount point                 |
+| `/media`  | 💿 Removable media             |
+| `/srv`    | 🌐 Service data                |
+
+---
+
+# 🧭 Absolute vs Relative Paths
+
+This is **very important**.
+
+Suppose you're here:
+
+```text
+/home/alex/cloud
+```
+
+And you want:
+
+```text
+/home/alex/cloud/linux
+```
+
+You can use:
+
+```bash
+cd linux
+```
+
+That's a **relative path**.
+
+You're saying:
+
+> "From where I am now, go into `linux`."
+
+But you could also write:
+
+```bash
+cd /home/alex/cloud/linux
+```
+
+That's an **absolute path**.
+
+You're saying:
+
+> "Start at `/` and follow this exact path."
+
+---
+
+# 🔍 How to Recognize Them
+
+### Absolute path
+
+Starts with `/`:
+
+```text
+/home/alex/cloud
+/etc/hosts
+/var/log
+/usr/bin
+```
+
+### Relative path
+
+Doesn't start with `/`:
+
+```text
+cloud
+linux/notes.txt
+../Documents
+```
+
+This distinction is essential when writing scripts and managing servers.
+
+---
+
+# 🧪 Your Filesystem Lab
+
+Now let's explore your Linux machine.
+
+Run these **one at a time**:
+
+```bash
+pwd
+```
+
+Then:
+
+```bash
+ls /
+```
+
+Then:
+
+```bash
+ls /home
+```
+
+Then:
+
+```bash
+ls /etc
+```
+
+Then:
+
+```bash
+ls /var
+```
+
+Then:
+
+```bash
+ls /var/log
+```
+
+Then:
+
+```bash
+ls /usr/bin | head
+```
+
+And finally:
+
+```bash
+cat /etc/hostname
+```
+
+### One particularly important experiment:
+
+Run:
+
+```bash
+cd /
+```
+
+Then:
+
+```bash
+pwd
+```
+
+You should get:
+
+```text
+/
+```
+
+Now run:
+
+```bash
+cd /tmp
+```
+
+Then:
+
+```bash
+pwd
+```
+
+You should get:
+
+```text
+/tmp
+```
+
+Now:
+
+```bash
+cd ..
+```
+
+Where do you think you are?
+
+Run:
+
+```bash
+pwd
+```
+
+**Don't just guess—predict first, then run it.**
+
+---
+
+# 🎯 Mini Challenge
+
+Without looking back at the explanations, answer these:
+
+1. Where are normal users' home directories stored?
+2. Where would you look for system configuration?
+3. Where would you look for logs?
+4. Where are temporary files generally stored?
+5. What is `/root`?
+6. What is `/`?
+7. What's the difference between `/home/user` and `home/user`?
+8. Where can you find information about running processes?
+9. Where are device representations found?
+10. What does `..` mean?
+
+Once you've done the lab, send me your **answers + any command output that surprised you**.
+
+Then we'll move to **Lesson #3: Linux files, permissions, users, groups, and the mysterious `-rwxr-xr-x`**. That's where you'll start understanding what those weird Linux permission strings actually mean.
