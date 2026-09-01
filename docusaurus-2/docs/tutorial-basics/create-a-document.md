@@ -2,7 +2,7 @@
 sidebar_position: 2
 ---
 
-# 🐳 Docker Advanced
+# Create a Document
 
 Documents are **groups of pages** connected through:
 
@@ -42,15 +42,13 @@ This is my **first Docusaurus document**!
 It is also possible to create your sidebar explicitly in `sidebars.js`:
 
 ```js title="sidebars.js"
-export default {
+module.exports = {
   tutorialSidebar: [
-    'intro',
-    // highlight-next-line
-    'hello',
     {
       type: 'category',
       label: 'Tutorial',
-      items: ['tutorial-basics/create-a-document'],
+      // highlight-next-line
+      items: ['hello'],
     },
   ],
 };
