@@ -1,0 +1,87 @@
+---
+sidebar_position: 17
+title: "17. Cloud Storage Types & Lifecycle Tiers"
+description: "Master Object, Block, and File storage, along with Hot, Cool, and Archive temperature tiers."
+---
+
+# 📦 17. Cloud Storage Types & Lifecycle Tiers
+
+Storing data in the cloud is not "one size fits all." You wouldn't use a massive shipping container to carry a single pencil, nor would you use a shoebox to move your bedroom furniture!
+
+Let's master the **3 Primary Cloud Storage Types** and the **Cost-Saving Access Tiers**.
+
+---
+
+## 🗄️ The 3 Primary Storage Formats
+
+![Cloud Storage Types and Temperature Lifecycle Tiers](/img/cloud-book/17-storage-types-tiers.svg)
+
+```
+ ┌────────────────────────────────────────────────────────────────────────┐
+ │                      📦 THE 3 STORAGE TYPES                            │
+ ├────────────────────┬────────────────────┬──────────────────────────────┤
+ │ 🪣 1. Object       │ 🖴 2. Block        │ 📁 3. File                   │
+ │    Storage         │    Storage         │    Storage                   │
+ ├────────────────────┼────────────────────┼──────────────────────────────┤
+ │ • Valet parking    │ • Dedicated Hard   │ • Traditional Shared         │
+ │   with claim check │   Drive in a PC    │   Network Folder             │
+ │ • Key/Value bucket │ • High IOPS raw    │ • Multi-VM simultaneous      │
+ │ • Infinitely large │   chunks for OS    │   read/write (NFS / SMB)     │
+ │ • Ex: S3, Blob     │ • Ex: EBS, Managed │ • Ex: EFS, Azure Files       │
+ └────────────────────┴────────────────────┴──────────────────────────────┘
+```
+
+---
+
+## 🔍 Detailed Storage Breakdown
+
+### 1. 🪣 Object Storage (Amazon S3, Azure Blob, Google Cloud Storage)
+* **How it works:** Files are stored as individual objects with a unique identifier key and custom metadata tags. There are no folders in reality—just a flat bucket!
+* **Analogy:** Valet parking! You hand your car keys to the attendant, they give you ticket #4812. You don't care which parking spot the car is parked in; you hand back ticket #4812 and get your car immediately.
+* **Best for:** Photos, YouTube video uploads, website backups, audio files, static HTML/CSS files.
+
+### 2. 🖴 Block Storage (Amazon EBS, Azure Managed Disks, GCP Persistent Disk)
+* **How it works:** Raw, unformatted volumes split into fixed-size physical blocks of bytes. Must be formatted with a filesystem (ext4, NTFS) and attached directly to a Virtual Machine.
+* **Analogy:** Plugging an ultra-fast internal NVMe Solid State Drive (SSD) directly into your computer’s motherboard.
+* **Best for:** Running operating systems, databases (MySQL, PostgreSQL, MongoDB) requiring low-latency microsecond read/writes.
+
+### 3. 📁 File Storage (Amazon EFS, Azure Files, Google Cloud Filestore)
+* **How it works:** Shared hierarchical folder system accessible simultaneously by hundreds of virtual machines via standard network protocols (NFS for Linux, SMB for Windows).
+* **Analogy:** A shared family Google Drive or school network shared folder where everyone can view and edit homework files together.
+* **Best for:** Legacy software migration, content management systems (WordPress) shared across multiple web servers.
+
+---
+
+## 🌡️ The 3 Temperature Access Tiers (Lifecycle Management)
+
+Why pay high storage costs for old security camera footage that nobody ever watches? Cloud providers offer **Access Tiers** based on data temperature:
+
+```
+  🔥 HOT TIER                     ❄️ COOL TIER                    🧊 ARCHIVE TIER
+  (Frequent Access)               (Infrequent Access)             (Deep Freeze Glacier)
+  ───────────────────────────────────────────────────────────────────────────────────
+  • Profile pictures & homepages  • Invoices from 6 months ago    • 7-year medical tax records
+  • Accessed daily                • Accessed once a month         • Accessed once every 3 years
+  • Highest storage cost          • Lower storage cost            • Dirt cheap ($0.00099 / GB)
+  • Instant retrieval (0 ms)      • Instant retrieval (0 ms)      • Takes 3-5 hours to thaw
+```
+
+```
+  ┌─────────────────────────────────────────────────────────────┐
+  │                 🔄 AUTOMATED LIFECYCLE RULE                 │
+  │                                                             │
+  │   Day 0 - 30:     Keep in 🔥 HOT TIER (Active usage)        │
+  │   Day 31 - 90:    Move to ❄️ COOL TIER (Save 50% cost)      │
+  │   Day 91 - 365+:  Move to 🧊 ARCHIVE TIER (Save 90% cost)   │
+  │   Day 2555 (7yr): 🗑️ Auto-delete permanently!              │
+  └─────────────────────────────────────────────────────────────┘
+```
+
+:::tip 💰 Cost-Saving Goldmine
+Configuring automated lifecycle policies on your Object Storage buckets can slash your enterprise storage bills by up to **80% automatically** without changing a single line of code!
+:::
+
+---
+
+### ⏭️ Next Step
+How do we protect our accounts and govern who can click what? Head over to **[Chapter 18: Identity, Security & Governance ➡️](./18-Identity-Security-and-Governance.mdx)**

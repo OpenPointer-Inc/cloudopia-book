@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 680" width="100%" height="100%" style="background: linear-gradient(135deg, #150f23 0%, #20153b 50%, #150f23 100%); border-radius: 16px; font-family: 'Space Grotesk', system-ui, sans-serif;">
+  <defs>
+    <linearGradient id="grad-accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#c2ef4e" />
+      <stop offset="100%" stop-color="#6a5fc1" />
+    </linearGradient>
+    <linearGradient id="grad-hot" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fa7faa" />
+      <stop offset="100%" stop-color="#ff4757" />
+    </linearGradient>
+    <linearGradient id="grad-cool" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#70a1ff" />
+      <stop offset="100%" stop-color="#1e90ff" />
+    </linearGradient>
+    <linearGradient id="grad-archive" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2ed573" />
+      <stop offset="100%" stop-color="#5352ed" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Title Banner -->
+  <rect x="40" y="30" width="1120" height="70" rx="12" fill="rgba(255,255,255,0.06)" stroke="#6a5fc1" stroke-width="1.5" />
+  <text x="600" y="74" text-anchor="middle" fill="#c2ef4e" font-size="28" font-weight="700" letter-spacing="1">📦 CLOUD STORAGE TYPES &amp; ACCESS TIERS</text>
+
+  <!-- 3 Storage Cards -->
+  <!-- Object Storage -->
+  <g transform="translate(60, 130)">
+    <rect width="330" height="230" rx="14" fill="#1f1633" stroke="#c2ef4e" stroke-width="2" />
+    <circle cx="165" cy="55" r="32" fill="rgba(194, 239, 78, 0.15)" stroke="#c2ef4e" stroke-width="2" />
+    <text x="165" y="65" text-anchor="middle" font-size="30">🪣</text>
+    <text x="165" y="120" text-anchor="middle" fill="#ffffff" font-size="20" font-weight="700">Object Storage</text>
+    <text x="165" y="146" text-anchor="middle" fill="#bdb8c0" font-size="14">Unstructured Files &amp; Buckets</text>
+    <rect x="30" y="165" width="270" height="42" rx="8" fill="rgba(255,255,255,0.05)" />
+    <text x="165" y="191" text-anchor="middle" fill="#c2ef4e" font-size="13" font-weight="600">AWS S3 • Azure Blob • GCP GCS</text>
+  </g>
+
+  <!-- Block Storage -->
+  <g transform="translate(435, 130)">
+    <rect width="330" height="230" rx="14" fill="#1f1633" stroke="#fa7faa" stroke-width="2" />
+    <circle cx="165" cy="55" r="32" fill="rgba(250, 127, 170, 0.15)" stroke="#fa7faa" stroke-width="2" />
+    <text x="165" y="65" text-anchor="middle" font-size="30">🖴</text>
+    <text x="165" y="120" text-anchor="middle" fill="#ffffff" font-size="20" font-weight="700">Block Storage</text>
+    <text x="165" y="146" text-anchor="middle" fill="#bdb8c0" font-size="14">Virtual Disks for VMs &amp; DBs</text>
+    <rect x="30" y="165" width="270" height="42" rx="8" fill="rgba(255,255,255,0.05)" />
+    <text x="165" y="191" text-anchor="middle" fill="#fa7faa" font-size="13" font-weight="600">AWS EBS • Azure Disks • GCP Disk</text>
+  </g>
+
+  <!-- File Storage -->
+  <g transform="translate(810, 130)">
+    <rect width="330" height="230" rx="14" fill="#1f1633" stroke="#70a1ff" stroke-width="2" />
+    <circle cx="165" cy="55" r="32" fill="rgba(112, 161, 255, 0.15)" stroke="#70a1ff" stroke-width="2" />
+    <text x="165" y="65" text-anchor="middle" font-size="30">📁</text>
+    <text x="165" y="120" text-anchor="middle" fill="#ffffff" font-size="20" font-weight="700">File Storage</text>
+    <text x="165" y="146" text-anchor="middle" fill="#bdb8c0" font-size="14">Shared Network Filesystems</text>
+    <rect x="30" y="165" width="270" height="42" rx="8" fill="rgba(255,255,255,0.05)" />
+    <text x="165" y="191" text-anchor="middle" fill="#70a1ff" font-size="13" font-weight="600">AWS EFS • Azure Files • Filestore</text>
+  </g>
+
+  <!-- Lower Section: Temperature Lifecycle Tiers -->
+  <rect x="60" y="390" width="1080" height="250" rx="16" fill="rgba(255,255,255,0.03)" stroke="#362d59" stroke-width="1.5" />
+  <text x="600" y="425" text-anchor="middle" fill="#ffffff" font-size="18" font-weight="700" letter-spacing="0.5">🌡️ DATA TEMPERATURE &amp; LIFECYCLE TIERS</text>
+
+  <!-- Hot Tier -->
+  <g transform="translate(90, 450)">
+    <rect width="300" height="160" rx="10" fill="#1a122e" stroke="#ff4757" stroke-width="1.5" />
+    <text x="30" y="40" font-size="26">🔥</text>
+    <text x="75" y="40" fill="#ff4757" font-size="18" font-weight="700">HOT TIER</text>
+    <text x="30" y="75" fill="#e6e1f0" font-size="13">• Millisecond Instant Access</text>
+    <text x="30" y="100" fill="#e6e1f0" font-size="13">• Highest Storage Cost</text>
+    <text x="30" y="125" fill="#bdb8c0" font-size="12">Ex: Active web pages, user uploads</text>
+  </g>
+
+  <!-- Cool Tier -->
+  <g transform="translate(450, 450)">
+    <rect width="300" height="160" rx="10" fill="#1a122e" stroke="#1e90ff" stroke-width="1.5" />
+    <text x="30" y="40" font-size="26">❄️</text>
+    <text x="75" y="40" fill="#1e90ff" font-size="18" font-weight="700">COOL TIER</text>
+    <text x="30" y="75" fill="#e6e1f0" font-size="13">• Infrequent Access (30+ days)</text>
+    <text x="30" y="100" fill="#e6e1f0" font-size="13">• 50% Cheaper Storage</text>
+    <text x="30" y="125" fill="#bdb8c0" font-size="12">Ex: Monthly invoices, raw logs</text>
+  </g>
+
+  <!-- Archive Tier -->
+  <g transform="translate(810, 450)">
+    <rect width="300" height="160" rx="10" fill="#1a122e" stroke="#5352ed" stroke-width="1.5" />
+    <text x="30" y="40" font-size="26">🧊</text>
+    <text x="75" y="40" fill="#a29bfe" font-size="18" font-weight="700">ARCHIVE TIER</text>
+    <text x="30" y="75" fill="#e6e1f0" font-size="13">• Rare Access (Hours to thaw)</text>
+    <text x="30" y="100" fill="#e6e1f0" font-size="13">• Up to 90% Cost Savings</text>
+    <text x="30" y="125" fill="#bdb8c0" font-size="12">Ex: Multi-year compliance &amp; tax data</text>
+  </g>
+</svg>

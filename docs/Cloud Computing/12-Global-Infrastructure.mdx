@@ -1,0 +1,103 @@
+---
+sidebar_position: 12
+title: "12. Global Infrastructure Layout"
+description: "How the cloud is mapped around the globe: Datacenters, Regions, Region Pairs, Availability Zones, and Edge Locations."
+---
+
+# 🌍 12. Global Infrastructure Layout
+
+When you click "Create Virtual Machine", where does that physical machine actually live? 
+
+Cloud providers have built the largest interconnected physical engineering network on planet Earth. Let’s zoom in from outer space down to a single server rack!
+
+---
+
+## 🔭 The 5-Layer Russian Doll of Cloud Geography
+
+![Worldwide Global Cloud Infrastructure Map](/img/cloud-book/12-global-infrastructure.jpg)
+
+```
+  ┌─────────────────────────────────────────────────────────────┐
+  │ 🌍 1. GLOBAL NETWORK (Subsea Fiber Optic Cables)            │
+  │   ┌───────────────────────────────────────────────────────┐ │
+  │   │ 📍 2. REGIONS (e.g., US-East, Europe-West, Tokyo)     │ │
+  │   │   ┌─────────────────────────────────────────────────┐ │ │
+  │   │   │ 🏢 3. AVAILABILITY ZONES (AZ-1, AZ-2, AZ-3)     │ │ │
+  │   │   │   ┌───────────────────────────────────────────┐ │ │ │
+  │   │   │   │ 📦 4. DATACENTERS (Physical buildings)    │ │ │ │
+  │   │   │   │   ┌─────────────────────────────────────┐ │ │ │ │
+  │   │   │   │   │ 🖥️ 5. SERVER RACKS & HYPERVISORS    │ │ │ │ │
+  │   │   │   │   └─────────────────────────────────────┘ │ │ │ │
+  │   │   │   └───────────────────────────────────────────┘ │ │ │
+  │   │   └─────────────────────────────────────────────────┘ │ │
+  │   └───────────────────────────────────────────────────────┘ │
+  └─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🏢 1. Datacenters: The Physical Fortresses
+A **Datacenter** is a giant windowless building the size of several football stadiums. Inside, you will find:
+* Thousands of computer racks stacked with servers.
+* Redundant commercial power lines + industrial diesel generators.
+* Massive chilled-water cooling systems.
+* Armed security guards, biometric mantraps, and automated fire suppression.
+
+---
+
+## ⚡ 2. Availability Zones (AZs): Isolated Power & Water
+An **Availability Zone (AZ)** is one or more distinct physical datacenters located several miles apart within the same metropolitan area.
+
+* **Key Secret:** Each AZ has its own **independent power supply, cooling, and fiber internet connection**.
+* **Why this matters:** If a construction backhoe accidentally cuts the power cable to AZ-1, AZ-2 and AZ-3 are completely unaffected and continue running without missing a single byte!
+
+```
+                       ╔═══════════════════════════════════╗
+                       ║        📍 REGION: US-EAST         ║
+                       ║                                   ║
+  ┌──────────────────┐ ║ ┌──────────────────┐ ║ ┌──────────────────┐
+  │ 🏢 AZ #1         │ ║ │ 🏢 AZ #2         │ ║ │ 🏢 AZ #3         │
+  │ • Power Grid A   │ ║ │ • Power Grid B   │ ║ │ • Power Grid C   │
+  │ • Water Cooling A│ ║ │ • Water Cooling B│ ║ │ • Water Cooling C│
+  └────────┬─────────┘ ║ └────────┬─────────┘ ║ └────────┬─────────┘
+           │           ║          │           ║          │
+           └───────────╩══════════┴═══════════╩──────────┘
+                        Ultra-low-latency fiber ring (< 2ms)
+```
+
+---
+
+## 📍 3. Cloud Regions
+A **Region** is a specific geographic location on the globe (such as *North Virginia*, *Frankfurt*, *Singapore*, or *Sydney*) that contains **at least 3 separate Availability Zones**.
+
+### Why choose a specific Region?
+1. **Latency (Speed):** Place your servers closest to where your users live. (A user in London gets 10ms latency from a Frankfurt region vs. 150ms from Tokyo).
+2. **Data Residency / Compliance:** Many countries legally require that medical or citizen data never leave their physical borders (e.g., GDPR in the EU).
+3. **Cost:** Electricity and real estate prices vary around the world, so some regions are slightly cheaper than others.
+
+---
+
+## 👯 4. Region Pairs: The Ultimate Disaster Backup
+A **Region Pair** consists of two regions within the same continent located at least 300 miles apart (for example, *East US* paired with *West US*).
+
+* In the event of a massive natural disaster (like a hurricane knocking out the entire East Coast), cloud services automatically prioritize restoring and failing over to the paired West Coast region.
+
+---
+
+## ⚡ 5. Edge Locations & Points of Presence (PoPs)
+What about small cities that don't have a giant full-size datacenter?
+
+Cloud providers deploy hundreds of **Edge Locations (PoPs)** in over 100+ global cities. These are lightweight caching servers connected to **Content Delivery Networks (CDNs)** like *Amazon CloudFront* or *Azure CDN*.
+
+* When a student in Nairobi or Buenos Aires opens your website, the images and video files load directly from the local Edge Location in their city in 5 milliseconds instead of traveling across the Atlantic ocean!
+
+:::tip 🎯 Summary Memory Anchor
+* **Region** = A major city hub with multiple zones (e.g., *US-East*).
+* **Availability Zone (AZ)** = Independent, isolated power/cooling datacenters within that region.
+* **Edge Location** = A local caching outpost close to end users for ultra-fast downloads.
+:::
+
+---
+
+### ⏭️ Next Step
+Now let’s look at how multiple virtual computers live inside a single physical box in **[Chapter 13: Virtualization Fundamentals & Hypervisors ➡️](./13-Virtualization-and-Hypervisors.mdx)**

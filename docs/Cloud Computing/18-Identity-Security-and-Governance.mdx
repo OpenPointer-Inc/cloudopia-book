@@ -1,0 +1,106 @@
+---
+sidebar_position: 18
+title: "18. Identity, Security & Governance"
+description: "Master the Shared Responsibility Model, IAM, Role-Based Access Control (RBAC), and Resource Locks."
+---
+
+# 🛡️ 18. Identity, Security & Governance
+
+Security in the cloud is not just about strong passwords—it is about architectural discipline, least privilege, and knowing who is responsible for what.
+
+Let's explore the fundamental security frameworks that keep billions of users safe every single day!
+
+---
+
+## 🤝 1. The Shared Responsibility Model
+
+A common beginner misconception is thinking: *"Because I moved to AWS/Azure/GCP, the cloud provider will automatically protect all my data from hackers!"*
+
+That is only half true! Security in the cloud is a **partnership**:
+
+```
+ ┌────────────────────────────────────────────────────────────────────────┐
+ │                 🤝 THE SHARED RESPONSIBILITY MODEL                     │
+ ├────────────────────────────────────┬───────────────────────────────────┤
+ │ ☁️ SECURITY OF THE CLOUD           │ 👤 SECURITY IN THE CLOUD          │
+ │ (The Cloud Provider's Job)         │ (YOUR Job as the Customer)        │
+ ├────────────────────────────────────┼───────────────────────────────────┤
+ │ • Physical datacenter perimeter    │ • Customer Data & Database tables │
+ │ • Armed guards & cameras           │ • User Passwords & MFA Keys       │
+ │ • Hypervisor firmware isolation    │ • IAM Permission Policies         │
+ │ • Power, AC & Fiber Cables         │ • Operating System Security Fixes │
+ │ • Hardware shredding of dead disks │ • Firewall (NSG) Port Rules       │
+ └────────────────────────────────────┴───────────────────────────────────┘
+```
+
+> 💡 **The Hotel Room Analogy:** The hotel management is responsible for the building foundation, fire alarms, lobby security, and elevator maintenance (*Security OF the Hotel*). But if you leave your hotel room door wide open with your wallet sitting on the pillow, that is your mistake (*Security IN the Hotel*)!
+
+---
+
+## 🪪 2. Identity & Access Management (IAM)
+
+IAM is the digital bouncer of your cloud account. It answers two critical questions:
+
+```
+                  ┌─────────────────────────────────────────┐
+                  │                 🪪 IAM                  │
+                  ├────────────────────┬────────────────────┤
+                  │ 1. Authentication  │ 2. Authorization   │
+                  │    (AuthN)         │    (AuthZ)         │
+                  │ "Who are you?"     │ "What are you      │
+                  │ (Username/Password │  allowed to do?"   │
+                  │  + MFA Token)      │ (Read, Write, Del) │
+                  └────────────────────┴────────────────────┘
+```
+
+### 🗝️ The Principle of Least Privilege
+Always grant users, developers, and applications the **bare minimum permissions** needed to perform their job, and nothing more!
+* A junior intern needs read-only access to view logs—never grant them administrator permissions to delete the entire production database!
+
+---
+
+## 🎭 3. Role-Based Access Control (RBAC)
+
+Instead of manually assigning permissions to 500 individual employees, you assign permissions to **Roles**, and add employees to the appropriate Group:
+
+```
+  ┌──────────────┐         ┌─────────────────────────┐         ┌─────────────────────────┐
+  │ 👤 Alice     │ ──►     │ 🎭 Role: "Billing Admin"│ ──►     │ 💳 View & Download      │
+  │ (Accountant) │         │                         │         │    Monthly Invoices     │
+  └──────────────┘         └─────────────────────────┘         └─────────────────────────┘
+  ┌──────────────┐         ┌─────────────────────────┐         ┌─────────────────────────┐
+  │ 👤 Bob       │ ──►     │ 🎭 Role: "DevOps Lead"  │ ──►     │ 🚀 Launch & Restart     │
+  │ (Engineer)   │         │                         │         │    Virtual Machines     │
+  └──────────────┘         └─────────────────────────┘         └─────────────────────────┘
+```
+
+---
+
+## 🔒 4. Resource Locks: Preventing Accidental Disasters
+
+Have you ever accidentally deleted an important file and panicked? In cloud architecture, a developer running a script with a typo could accidentally delete a live production database serving 10 million customers!
+
+To prevent this, cloud platforms offer **Resource Locks**:
+
+```
+  ┌────────────────────────────────────────────────────────────────────────┐
+  │                        🔒 RESOURCE LOCK TIERS                          │
+  ├────────────────────────────────────┬───────────────────────────────────┤
+  │ 🟡 Read-Only Lock                  │ 🔴 CanNotDelete Lock (Delete Lock)│
+  ├────────────────────────────────────┼───────────────────────────────────┤
+  │ Authorized users can read and view │ Authorized users can read and     │
+  │ resources, but CANNOT modify or    │ modify resources, but NOBODY can  │
+  │ delete anything!                   │ delete it until lock is removed.  │
+  └────────────────────────────────────┴───────────────────────────────────┘
+```
+
+:::tip 🎯 Top 3 Cloud Security Rules
+1. **Never use the Root Account** for everyday tasks—create named IAM users.
+2. **Enable Multi-Factor Authentication (MFA)** on every single account.
+3. **Never hardcode passwords or API keys** in GitHub code repositories!
+:::
+
+---
+
+### ⏭️ Next Step
+How do we control our cloud spending and prevent surprise bills? Let’s learn in **[Chapter 19: Cost Governance & Management Tools ➡️](./19-Cost-Governance-and-Management.mdx)**
