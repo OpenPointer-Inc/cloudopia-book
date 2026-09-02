@@ -1,0 +1,356 @@
+---
+sidebar_position: 3
+description: "Understand IaaS, PaaS, and SaaS, from basic definitions to real-world trade-offs and architecture decisions."
+---
+
+# IaaS, PaaS, and SaaS
+
+Cloud providers offer technology at different levels of abstraction. You can rent a virtual computer, deploy code to a managed platform, or use a complete application through a browser. These choices are called **cloud service models**.
+
+The central question is:
+
+> **How much of the technology stack do you want to manage yourself?**
+
+The three traditional service models are:
+
+- **Infrastructure as a Service (IaaS):** You rent fundamental computing resources and manage much of the software above them.
+- **Platform as a Service (PaaS):** You deploy application code to a platform while the provider operates more of the infrastructure and runtime.
+- **Software as a Service (SaaS):** You use a complete application while the provider operates nearly everything behind it.
+
+By the end of this lesson, you should be able to:
+
+- Explain the difference between IaaS, PaaS, and SaaS
+- Identify who is responsible for each major layer
+- Choose a service model for a particular workload
+- Recognize trade-offs involving control, speed, cost, security, and portability
+
+## Deployment models and service models
+
+Do not confuse the two kinds of models:
+
+- A **deployment model** describes where and for whom infrastructure is operated: public cloud, private cloud, hybrid cloud, or multi-cloud.
+- A **service model** describes how much of the stack the provider manages: IaaS, PaaS, or SaaS.
+
+They can be combined. For example, a company can use a public-cloud IaaS virtual machine, a public-cloud PaaS application platform, and a SaaS email service. A private cloud can also provide infrastructure or platform services.
+
+## Start with a simple analogy
+
+Imagine that you need a place to run a business:
+
+- **IaaS** is like renting an empty apartment. The landlord operates the building, electricity, and main utilities. You arrange the rooms, install what you need, and maintain everything inside your apartment.
+- **PaaS** is like renting a furnished apartment with maintenance included. You bring your belongings and use the space, while the property manager handles most of the building and equipment.
+- **SaaS** is like staying in a hotel. You use a ready-to-go room and ask the hotel to handle the building, maintenance, and services. You control your stay and preferences, but not how the hotel operates internally.
+
+The analogy is not exact, but it shows the trade-off: **more provider management usually means less infrastructure work for you, but also less control over implementation details.**
+
+## The technology stack
+
+An application depends on several layers. Starting at the bottom, a simplified stack looks like this:
+
+```text
+Application data and configuration
+Application code
+Runtime and libraries
+Operating system
+Virtualization and host
+Physical compute, storage, and networking
+```
+
+The service model determines where responsibility changes hands:
+
+| Layer | IaaS | PaaS | SaaS |
+| --- | --- | --- | --- |
+| Physical data center and hardware | Provider | Provider | Provider |
+| Physical network and virtualization | Provider | Provider | Provider |
+| Guest operating system | Customer | Provider | Provider |
+| Runtime and common platform software | Customer | Provider | Provider |
+| Application code | Customer | Customer | Provider |
+| Data, users, and application settings | Customer | Customer | Customer manages its use and access |
+
+This is a simplified model. A provider may offer optional managed services at any level, and the exact boundary differs between products. Still, it is a useful starting point for understanding responsibility.
+
+## IaaS: Infrastructure as a Service
+
+### What is IaaS?
+
+IaaS provides basic computing resources such as:
+
+- Virtual machines
+- Virtual disks and object storage
+- Virtual networks and subnets
+- Firewalls and load balancers
+- Public and private IP addresses
+
+The provider owns the physical infrastructure and virtualization layer. You decide how to configure the virtual environment and are normally responsible for the operating system, runtime, application, data, and many security settings.
+
+Common IaaS examples include:
+
+- Amazon EC2
+- Azure Virtual Machines
+- Google Compute Engine
+
+The product names differ, but the idea is the same: you receive a virtual computer and build the software environment on top of it.
+
+### A simple IaaS example
+
+Suppose you need to run a Node.js web API. With IaaS, you might:
+
+1. Create a Linux virtual machine with a chosen CPU, memory, and disk size.
+2. Configure its virtual network and firewall rules.
+3. Install security updates and Node.js.
+4. Install and configure a web server and your application.
+5. Set up logs, monitoring, backups, and deployment automation.
+6. Add more virtual machines or an autoscaling rule when traffic increases.
+
+The request path might look like this:
+
+```text
+Users
+  |
+  v
+Load balancer
+  |
+  v
+Linux virtual machine
+  |
+  +-- Web server
+  +-- Node.js runtime
+  +-- Your API
+```
+
+The provider keeps the physical host and hypervisor running. It does not normally patch the Linux installation inside your VM or fix a vulnerable library in your application.
+
+### When IaaS is useful
+
+IaaS is a good fit when you need:
+
+- Operating-system or runtime control
+- Custom agents, drivers, or network settings
+- A long-running workload that does not fit a managed platform
+- A legacy application that can be moved with few code changes
+- Fine-grained control over capacity and architecture
+
+This migration approach is often called **rehosting** or **lift and shift**: move an existing server-based workload to virtual machines with minimal redesign.
+
+### IaaS trade-offs
+
+IaaS gives you control, but control creates work. Your team may need to patch operating systems, harden images, manage credentials, configure firewalls, plan capacity, recover failed machines, and maintain deployment scripts. A VM can be created quickly, but a secure and reliable VM-based application still needs professional operations.
+
+## PaaS: Platform as a Service
+
+### What is PaaS?
+
+PaaS provides a managed environment for deploying application code. Instead of building and maintaining the operating system and application server, you give the platform source code, a build artifact, or sometimes a container image. The platform handles much of the work needed to run it.
+
+Common PaaS examples include:
+
+- Azure App Service
+- Google App Engine
+- Heroku
+- AWS Elastic Beanstalk
+
+Depending on the product, the platform may provide runtime selection, deployment slots, health checks, TLS termination, load balancing, logs, and autoscaling.
+
+### A simple PaaS example
+
+With a PaaS web platform, deploying the same API might look like this:
+
+```text
+Your source code or build artifact
+             |
+             v
+      PaaS deployment platform
+             |
+             +-- Managed runtime
+             +-- Managed instances
+             +-- Health checks
+             +-- Scaling and deployment
+             |
+             v
+          Your API
+```
+
+You normally configure the application name, runtime version, environment variables, secret references, instance size, minimum and maximum capacity, region, and health-check endpoint. You do not normally log in to a server to install the operating system or manually start each process.
+
+PaaS does not mean that the application runs without servers. Servers still exist; the provider manages them as part of the platform.
+
+### When PaaS is useful
+
+PaaS is a strong choice for a standard web application, API, worker, or scheduled job when the team wants to focus on code and product behavior instead of server administration. It can provide:
+
+- Faster deployments
+- Less operating-system maintenance
+- Built-in or integrated scaling
+- Standardized application environments
+- Easier onboarding for development teams
+
+It is especially useful when time to market and operational simplicity matter more than low-level control.
+
+### PaaS trade-offs
+
+PaaS platforms have boundaries. They may limit supported languages, runtime versions, request duration, filesystem behavior, networking, background processing, or customization. A local filesystem may be temporary, so persistent files should use a storage service or database. A platform can scale application instances, but it does not automatically fix inefficient code or a database that cannot handle the increased load.
+
+For a custom container deployment, you may still be responsible for the dependencies inside your image even though the platform manages the host. Always read the service's responsibility boundary rather than assuming that every PaaS feature works the same way.
+
+## SaaS: Software as a Service
+
+### What is SaaS?
+
+SaaS is a complete application delivered as a service. You usually access it through a browser, mobile app, desktop client, or API. You configure the product and use its features; you do not deploy its servers or maintain its operating system.
+
+Common SaaS examples include:
+
+- Microsoft 365 or Google Workspace for email and collaboration
+- Salesforce for customer relationship management
+- Slack for team communication
+- GitHub for source-code hosting and collaboration
+
+For example, when a company uses a SaaS email service, it creates user accounts, configures domains and security policies, and manages mailbox data. The SaaS provider operates the mail servers, application code, storage platform, upgrades, and most of the underlying infrastructure.
+
+### What the customer still manages
+
+SaaS is the most managed of these three models, but the customer still has important responsibilities:
+
+- Selecting users, roles, groups, and sharing permissions
+- Enforcing strong authentication and, where available, multi-factor authentication
+- Configuring retention, privacy, and integration settings
+- Protecting devices that access the application
+- Managing the data entered into the service
+- Exporting or backing up important data when appropriate
+- Reviewing the provider's security, availability, and compliance commitments
+
+A SaaS provider can secure its platform while a customer accidentally shares a document with the whole internet. Managed software reduces infrastructure work; it does not remove the need for administration and governance.
+
+### When SaaS is useful
+
+SaaS is a good fit when the capability is common across many organizations and does not justify building a custom system. Email, document collaboration, payroll, customer support, accounting, and project management are often consumed this way.
+
+SaaS can provide rapid adoption and predictable administration, but the organization accepts the vendor's product decisions, release schedule, service limits, pricing, and data-handling terms.
+
+## Compare the three models
+
+| Concern | IaaS | PaaS | SaaS |
+| --- | --- | --- | --- |
+| What you receive | Virtual infrastructure | A managed application platform | A finished application |
+| Your main task | Build and operate the software environment | Deploy and operate your application | Configure and govern usage |
+| Infrastructure control | High | Medium | Low |
+| Infrastructure work | High | Medium to low | Low |
+| Customization | High, within provider limits | Limited to platform capabilities | Limited to product capabilities |
+| Typical billing | Resources, capacity, and usage | Instances, requests, runtime, or usage | Users, features, or usage |
+| Typical example | Run a VM for a custom application | Deploy an API to an app platform | Use an online collaboration suite |
+
+There is no universally "best" model. The right choice depends on the workload and the team's constraints.
+
+## One business, all three models
+
+An organization rarely chooses one model for everything. Consider a retailer:
+
+```text
+SaaS: email, CRM, support, and collaboration
+              |
+              v
+PaaS: new storefront and customer API
+              |
+              v
+Managed database and object storage
+              |
+              v
+IaaS: legacy inventory application on virtual machines
+```
+
+The retailer uses SaaS for standard business capabilities, PaaS for a new application, and IaaS for a legacy system that needs operating-system control. This is often more practical than forcing every workload into one service model.
+
+For an online store itself, the alternatives could be:
+
+- **IaaS:** Install and operate the entire store application on virtual machines.
+- **PaaS:** Deploy the store's code to a managed web platform and connect it to managed data services.
+- **SaaS:** Configure a ready-made commerce product such as Shopify instead of building and operating the store platform yourself.
+
+The more managed option may launch faster. The less managed option may support deeper customization. The decision should be based on the business requirement, not on the idea that advanced teams must always choose the lowest-level model.
+
+## Advanced trade-offs
+
+### Shared responsibility
+
+Moving from IaaS to PaaS to SaaS usually moves more operational responsibility to the provider, but the boundary never becomes zero responsibility for the customer.
+
+- With **IaaS**, you are commonly responsible for guest operating-system patches, virtual network rules, application security, identities, and data protection.
+- With **PaaS**, the provider usually handles the host, operating system, and platform runtime. You remain responsible for code, dependencies that you package, secrets, access controls, data, and secure configuration.
+- With **SaaS**, the provider operates the application and platform. You remain responsible for users, permissions, data handling, integrations, endpoint security, and how the product is configured.
+
+The provider's service-level agreement describes the availability of a service component. It does not guarantee that your application is correctly designed, that your data is correct, or that your recovery plan works.
+
+### Cost and total cost of ownership
+
+The visible bill is only part of the cost:
+
+- IaaS may have lower service abstraction costs but higher staff and maintenance costs.
+- PaaS may cost more per running unit while reducing patching and operations work.
+- SaaS may be priced per user or feature and can become expensive as an organization grows.
+
+Include compute, storage, data transfer, licenses, support plans, backups, monitoring, integration work, migration, and staff time. An inexpensive service can have a high total cost if it requires many hours of operation or is difficult to replace.
+
+### Scaling and availability
+
+PaaS often makes scaling easier, but scaling is not automatic just because a service is managed. You may need to configure capacity limits, health checks, queues, database scaling, rate limits, and alerting. IaaS can also use autoscaling when designed correctly.
+
+Similarly, a provider's redundancy does not automatically make your application highly available. A single database, region, dependency, or incorrect deployment can remain a single point of failure. Design for the required availability and recovery objectives, then test failover and backups.
+
+### Portability and vendor dependence
+
+Portability means how easily a workload can move to another environment:
+
+- An IaaS workload may be moved using an image or rebuild process, but virtual networks, identity, disks, and provider APIs still create differences.
+- A PaaS workload may require changes to runtimes, deployment methods, storage, queues, and observability when moved.
+- A SaaS workload may be hardest to replace because business data, workflows, user history, and integrations live inside the product.
+
+Using only the lowest common set of features can improve portability but may slow development and reduce useful managed capabilities. Deep use of a provider's services can improve productivity while increasing migration effort. This is a deliberate architecture trade-off, not a failure by itself.
+
+Useful portability practices include open data formats, documented interfaces, regular exports, tested restore procedures, infrastructure as code, and an exit plan proportionate to the business risk.
+
+## Related service models
+
+The three labels are useful, but modern cloud products do not always fit neatly into them.
+
+- **Managed services:** A managed database, message queue, object store, or identity service may be operated by the provider without being a complete PaaS application. "Managed" tells you who operates more of the service; it is not always a separate service-model category.
+- **Container as a Service (CaaS):** A container platform lets you deploy container images and often manages orchestration. Depending on the product, you may still manage cluster nodes, networking, or security settings. It sits between raw IaaS and a highly abstracted PaaS.
+- **Function as a Service (FaaS):** You deploy individual functions and the provider manages the servers and runtime capacity. This is commonly grouped with serverless computing. Serverless means that you do not manage servers directly; servers still exist.
+- **Anything as a Service (XaaS):** This is a broad name for consuming many kinds of capabilities as services rather than installing them yourself.
+
+The important skill is not memorizing every label. It is identifying which layers your team operates and which layers the provider operates.
+
+## Choosing a service model
+
+Use these questions when evaluating a workload:
+
+1. **Is the capability already available as a trustworthy product?** If yes, SaaS may be more efficient than building it.
+2. **Do we need to deploy custom code?** If yes, compare PaaS with IaaS based on runtime and control requirements.
+3. **Do we need operating-system, kernel, driver, or network control?** If yes, IaaS may be necessary.
+4. **How much operational work can the team support?** Choose an abstraction that reduces work without hiding requirements the team still needs to understand.
+5. **What are the data and compliance requirements?** Check location, retention, encryption, access, audit, and provider commitments.
+6. **What are the performance and recovery requirements?** Examine latency, throughput, RTO, RPO, quotas, and failure behavior.
+7. **What is the exit strategy?** Identify what must be exportable and how much provider-specific functionality is acceptable.
+
+A useful rule is:
+
+> **Use the highest level of abstraction that still satisfies the workload's real requirements.**
+
+This often leads to SaaS for commodity capabilities, PaaS for new standard applications, and IaaS for specialized or legacy workloads. It is a guideline, not a law.
+
+## Summary
+
+- **IaaS** provides virtual infrastructure and gives the customer the most control and operational responsibility.
+- **PaaS** provides a managed application platform so developers can focus more on code and less on servers.
+- **SaaS** provides a complete application; customers configure access, data, and usage rather than deploying the platform.
+- The provider's responsibility increases from IaaS to PaaS to SaaS, but customer responsibility never disappears.
+- Service models can be combined in one architecture and are separate from public, private, hybrid, and multi-cloud deployment models.
+- Evaluate total cost, security, availability, portability, skills, and compliance before choosing.
+
+### Check your understanding
+
+1. In IaaS, who is normally responsible for patching the guest operating system?
+2. Why can a PaaS platform reduce operational work without eliminating servers?
+3. Give one example of a SaaS product and name two things the customer still has to manage.
+4. Which service model would you consider for a legacy application that requires a custom operating system agent? Why?
+5. What is one advantage and one risk of choosing a provider-specific PaaS service?
+6. Can one organization use IaaS, PaaS, and SaaS at the same time? Give an example.

@@ -1,0 +1,192 @@
+---
+sidebar_position: 1
+description: "Understand what cloud computing is, how it works, and the decisions cloud professionals make."
+---
+
+# What is cloud computing?
+
+Cloud computing is the delivery of computing resources over a network, usually the internet. Instead of buying and operating every server, disk, and networking device yourself, you rent the resources you need from a cloud provider and use them when you need them.
+
+You already use cloud computing when you store photos online, stream a video, use webmail, or collaborate in an online document. The same idea powers business applications, websites, data platforms, and artificial intelligence systems.
+
+By the end of this lesson, you should be able to explain:
+
+- What the cloud is and what it is not
+- The main resources found in a cloud environment
+- The difference between IaaS, PaaS, and SaaS
+- Why organizations use public, private, hybrid, and multi-cloud environments
+- How scalability, availability, security, and cost affect cloud design
+
+## Start with an analogy
+
+Imagine opening a small bakery.
+
+You could buy a building, ovens, refrigerators, and delivery vehicles. You would be responsible for repairs, electricity, security, and replacing broken equipment. This is similar to running your own data center, often called **on-premises infrastructure**.
+
+Or, you could rent space in a commercial kitchen. You would pay for the kitchen and equipment you use while another company manages the building and most of the maintenance. This is similar to using cloud infrastructure.
+
+The cloud does not remove the equipment. It changes **who owns and manages it**, how quickly you can obtain it, and how you pay for it.
+
+## A simple definition
+
+> **Cloud computing is on-demand access to shared computing resources that can be provisioned, scaled, and measured through software.**
+
+Each part of this definition matters:
+
+- **On-demand:** You can request resources when you need them instead of waiting to purchase hardware.
+- **Shared:** A provider serves many customers from a large pool of physical resources. Customers are isolated from one another.
+- **Computing resources:** These include processing power, memory, storage, databases, networks, security tools, and more.
+- **Provisioned through software:** You can create and configure resources through a web console, command-line tool, API, or infrastructure-as-code file.
+- **Scaled:** You can often increase or decrease capacity as demand changes.
+- **Measured:** Usage is tracked, which enables usage-based billing and capacity monitoring.
+
+The cloud is therefore more than "someone else's computer." It is a way of consuming technology as a programmable service.
+
+## What is inside the cloud?
+
+Most cloud applications use several types of resources together:
+
+| Resource | What it provides | Example use |
+| --- | --- | --- |
+| **Compute** | CPU and memory for running code | A web server or background job |
+| **Storage** | A place for files and data | Images, backups, and documents |
+| **Database** | Organized, searchable application data | Users, orders, and products |
+| **Networking** | Connectivity and traffic control | DNS, private networks, and load balancers |
+| **Security and identity** | Access control and protection | Users, roles, keys, and encryption |
+| **Observability** | Logs, metrics, and traces | Finding failures and measuring performance |
+
+For example, an online store might use compute to run its application, a database for product and order information, object storage for product images, a load balancer to distribute requests, and monitoring to alert the team when something is wrong.
+
+```text
+Customer
+   |
+   v
+DNS -> Load balancer -> Application compute -> Database
+                                  |
+                                  v
+                              File storage
+```
+
+Cloud providers expose these resources through services. The names differ between providers, but the underlying ideas are similar.
+
+## How can a cloud provider offer this?
+
+Cloud providers operate large data centers containing physical servers, storage systems, and network equipment. They use **virtualization** and other forms of isolation to divide this hardware into manageable units.
+
+A simplified stack looks like this:
+
+```text
+Physical data center
+        |
+Virtualization and isolation
+        |
+Virtual machines, containers, and managed services
+        |
+Your application and data
+```
+
+You usually do not choose the physical machine where your application runs. You describe what you need, and the provider places and manages it for you. This abstraction is useful because your team can focus on the application instead of wiring servers together.
+
+Cloud resources are not magic, however. They still depend on physical hardware, electricity, cooling, networks, and people. A cloud service can fail, become expensive, or be configured insecurely. Good cloud engineering means understanding the abstraction and knowing what is underneath it.
+
+## Three ways to consume cloud services
+
+Cloud services are commonly grouped into three service models. The models describe how much of the technology stack you manage.
+
+| Model | You manage | The provider manages | Typical example |
+| --- | --- | --- | --- |
+| **Infrastructure as a Service (IaaS)** | Operating system, runtime, application, and data | Physical hardware and virtualization | A virtual machine |
+| **Platform as a Service (PaaS)** | Application code and data | Servers, operating system, runtime, and scaling platform | A managed application platform |
+| **Software as a Service (SaaS)** | Mostly your data and settings | The complete application and infrastructure | Online email or collaboration software |
+
+The trade-off is control versus operational work:
+
+- IaaS gives you more control, but you patch and operate more components.
+- PaaS reduces routine infrastructure work, but you accept the platform's constraints.
+- SaaS is the easiest to consume, but you have the least control over its implementation.
+
+**Serverless** is a related cloud pattern. You deploy code or use a managed service without managing the servers directly. Servers still exist; the provider handles their provisioning and operation. Serverless can reduce idle capacity and simplify scaling, but it may introduce limits, latency, and provider-specific dependencies.
+
+## Where does the cloud run?
+
+Cloud locations are organized into **regions** and **availability zones**. A region is a geographic area. An availability zone is an isolated data-center location, or group of locations, within a region.
+
+This structure helps you make deliberate decisions:
+
+- Place workloads near users to reduce network latency.
+- Keep data in locations that satisfy legal or organizational requirements.
+- Run important components across multiple availability zones to reduce the effect of a local failure.
+- Use more than one region when your recovery requirements justify the additional complexity and cost.
+
+The exact guarantees differ by service. A database may replicate data differently from a virtual machine, so always understand the service's availability, durability, and recovery features rather than assuming that a region or zone is automatically fail-safe.
+
+## Public, private, hybrid, and multi-cloud
+
+These terms describe how cloud environments are arranged:
+
+- **Public cloud:** A provider owns and operates the infrastructure, and many customers use isolated resources on it.
+- **Private cloud:** Cloud-like infrastructure is dedicated to one organization. It may run in the organization's data center or be hosted by another company.
+- **Hybrid cloud:** Private and public environments are connected so applications or data can work across both.
+- **Multi-cloud:** An organization uses services from two or more public cloud providers.
+
+Using multiple clouds is not automatically more reliable. It can reduce dependence on one provider, but it also requires more skills, tooling, networking, security controls, and operational processes.
+
+## The professional mental model
+
+Cloud design is not just about creating resources. It is about matching a system to its requirements.
+
+### Scalability, elasticity, and availability
+
+- **Scalability** is the ability to handle more work by adding resources or improving the system.
+- **Elasticity** is the ability to automatically add and remove resources as demand changes.
+- **Availability** is the proportion of time a service is usable.
+- **Durability** is the likelihood that stored data will remain intact over time.
+
+A system can be scalable without being highly available. For example, it may be able to add more servers but still have one database that can fail. Cloud services provide building blocks, but your architecture must combine them correctly.
+
+### Shared responsibility
+
+Security is shared between the provider and the customer. The provider normally secures the underlying facilities, hardware, and core service. You are still responsible for correct identity permissions, application security, data protection, configuration, and often operating-system patching.
+
+Moving to the cloud does not mean handing all security responsibility to the provider. A public storage bucket, leaked access key, or overly broad identity role can expose data even when the provider's infrastructure is working exactly as designed.
+
+### Cost and operations
+
+Cloud billing is usually based on consumption, subscriptions, or a combination of both. This makes starting a project easier, but it also means that unused resources continue to cost money.
+
+Professionals watch for:
+
+- Resources that are running but not being used
+- Over-sized virtual machines and databases
+- Data-transfer and network egress charges
+- Backup and storage growth
+- Costs introduced by high availability or multiple regions
+- Dependence on proprietary services that may be difficult to replace
+
+Infrastructure as code, tagging, budgets, logging, monitoring, backups, and automated cleanup help teams operate cloud environments consistently. These practices are as important as choosing the correct compute service.
+
+## What the cloud is not
+
+- It is not unlimited. Capacity, quotas, network limits, and service limits still exist.
+- It is not automatically cheaper. It is often more flexible, but poor usage and poor design can be expensive.
+- It is not automatically secure. Secure defaults and responsible configuration still matter.
+- It is not only storage. Applications use compute, networks, databases, identity, and many other services.
+- It is not a replacement for architecture. The provider supplies capabilities; you must decide how to use them safely and reliably.
+
+## Summary
+
+Cloud computing lets you consume IT resources as programmable, measurable services instead of purchasing and maintaining all the underlying hardware yourself. The main ideas to remember are:
+
+1. Cloud providers operate physical infrastructure and expose it through software.
+2. Cloud applications commonly combine compute, storage, databases, networking, identity, and observability.
+3. IaaS, PaaS, and SaaS offer different balances of control and operational responsibility.
+4. Regions and availability zones help you reason about latency, legal requirements, and failure recovery.
+5. The cloud provides useful capabilities, not automatic scalability, security, availability, or cost savings.
+
+### Check your understanding
+
+1. How is using a cloud virtual machine different from buying a physical server?
+2. Which service model gives you the most control: IaaS, PaaS, or SaaS?
+3. What is the difference between scalability and elasticity?
+4. Who is responsible for protecting an application's data and access permissions?
+5. Why might running an application in multiple availability zones improve availability?

@@ -1,0 +1,205 @@
+---
+sidebar_position: 2
+description: "Learn how public, private, hybrid, and multi-cloud environments differ and how to choose between them."
+---
+
+# Public, private, hybrid, and multi-cloud
+
+When people say that an organization "runs in the cloud," they may be describing very different environments. The organization might use infrastructure owned by a public cloud provider, operate a cloud platform in its own data center, connect both environments, or use more than one public provider.
+
+These choices are called **cloud deployment models**. They describe where infrastructure runs, who operates it, and who shares it. They are different from **service models** such as IaaS, PaaS, and SaaS, which describe how much of the technology stack the customer manages.
+
+By the end of this lesson, you should be able to:
+
+- Explain public, private, hybrid, and multi-cloud environments
+- Distinguish a private cloud from an ordinary on-premises data center
+- Recognize the trade-offs involving control, speed, cost, security, and reliability
+- Choose a deployment model based on requirements instead of fashion
+
+## Start with a simple analogy
+
+Imagine that your team needs a professional kitchen.
+
+- A **public cloud** is like renting space and equipment in a large commercial kitchen. The kitchen company owns and maintains the building, while different customers use securely separated work areas.
+- A **private cloud** is like operating a kitchen reserved for one organization. The organization, or a hosting partner, controls more of the environment.
+- A **hybrid cloud** connects your reserved kitchen to the commercial kitchen so work and ingredients can move between them.
+- **Multi-cloud** means using commercial kitchens run by two or more companies.
+
+The analogy is not perfect, but it highlights the main question: **who owns and operates the underlying environment, and how many environments must work together?**
+
+## The four models at a glance
+
+| Model | Who owns or operates the infrastructure? | Who uses it? | Common reason to choose it |
+| --- | --- | --- | --- |
+| **Public cloud** | A cloud provider | Many customers use isolated resources | Fast access to flexible, managed services |
+| **Private cloud** | One organization or a hosting partner | One organization | More control over environment and policy |
+| **Hybrid cloud** | A combination of private and public environments | One organization across both | Keep some workloads private while using public-cloud capabilities |
+| **Multi-cloud** | Two or more public cloud providers | One organization across providers | Use different provider strengths or reduce dependence on one provider |
+
+These models can overlap. An organization can have a **hybrid multi-cloud** design: a private data center connected to two public cloud providers.
+
+## Public cloud
+
+In a public cloud, a provider owns the physical data centers, servers, storage systems, and networking equipment. Customers create logical resources through a console, command-line tool, API, or infrastructure-as-code. The provider's customers share a large pool of infrastructure, but isolation mechanisms prevent one customer's resources from accessing another customer's resources without authorization.
+
+Examples include public clouds from AWS, Microsoft Azure, and Google Cloud. The important concept is not the provider's name. It is the operating arrangement: the provider supplies a shared platform, and customers consume services from it.
+
+### What public cloud is good at
+
+- **Speed:** A team can provision resources in minutes instead of purchasing and installing hardware.
+- **Elasticity:** Capacity can often grow during busy periods and shrink when demand falls.
+- **Breadth:** Providers offer databases, queues, analytics, identity, AI, monitoring, and many other managed services.
+- **Reach:** Applications can be placed in multiple geographic regions close to users.
+- **Lower starting cost:** Teams can begin without purchasing a complete data center.
+
+### Important limits
+
+Public cloud is not automatically cheap, secure, or unlimited. Quotas, service limits, outages, network latency, and data-transfer charges still exist. A resource that is forgotten but still running can continue generating a bill.
+
+Also, **public does not mean that your data is public**. A database can run in a public cloud while remaining on a private network and accessible only to approved identities. "Public" refers to the provider's shared commercial infrastructure, not the visibility of every resource or file.
+
+A **virtual private cloud (VPC)**, or a similar virtual network such as an Azure VNet, is an isolated network inside a public cloud. Despite the word "private," it is not the same as a private cloud: the provider still owns and operates the underlying public-cloud infrastructure.
+
+## Private cloud
+
+A private cloud is a cloud environment dedicated to one organization. It may be located in the organization's own data center or hosted by another company. The hardware may be dedicated or abstracted behind a platform; the defining characteristic is that the environment is reserved for one organization rather than offered as a general public pool.
+
+A private cloud should provide cloud-like capabilities such as:
+
+- Self-service provisioning
+- Automation through APIs or infrastructure as code
+- Resource pooling
+- Measured usage or chargeback
+- The ability to scale within available capacity
+
+This leads to an important distinction:
+
+> **On-premises describes location and ownership. Private cloud describes an operating model.**
+
+An on-premises environment with manually configured servers is not necessarily a private cloud. Conversely, a private cloud can be hosted by a provider outside the organization's buildings.
+
+### Why organizations use private cloud
+
+Private cloud can be useful when an organization needs strict control over hardware, network placement, custom security controls, or data residency. It may also be practical when existing systems, licensing agreements, or specialized equipment are difficult to move.
+
+The trade-off is responsibility. The organization or its hosting partner must plan capacity, maintain more layers, patch the platform, replace hardware when necessary, and build the automation and managed services that a public provider might already offer. Private does not mean automatically safer; it means that more security and operational decisions are under the organization's control.
+
+## Hybrid cloud
+
+**Hybrid cloud** combines a private environment with one or more public-cloud environments, with a connection that allows them to work together. Merely having a data center and a public-cloud account is not enough. The environments need intentional integration through networking, identity, DNS, data movement, deployment processes, or application architecture.
+
+A simple example is:
+
+```text
+Users
+  |
+  v
+Public cloud web and application tier
+  |
+  | private network connection
+  v
+Private environment containing a legacy system
+```
+
+Common reasons for a hybrid design include:
+
+- Moving to the public cloud gradually instead of all at once
+- Keeping regulated or highly sensitive systems in a private environment
+- Leaving a low-latency system close to factory equipment or office users
+- Using public-cloud capacity for seasonal demand, sometimes called **cloud bursting**
+- Keeping a backup or disaster-recovery environment in another location
+
+Hybrid designs are powerful, but the connection becomes part of the system's failure surface. Teams must handle network outages, bandwidth limits, latency, identity synchronization, incompatible APIs, data consistency, and monitoring across both sides. An application that frequently crosses the boundary may be slower and more expensive than expected because of network egress and transfer charges.
+
+## Multi-cloud
+
+**Multi-cloud** means using services from two or more public cloud providers. For example, an organization might run its customer application on one provider, use another provider's analytics service, and keep a third provider as a disaster-recovery option.
+
+Multi-cloud is not the same as:
+
+- **Multi-region:** Using multiple geographic regions from one provider
+- **Hybrid cloud:** Connecting public cloud to a private environment
+- **Backup copies:** Keeping a copy of data elsewhere without operating a second cloud platform
+
+An organization may use all three patterns at once.
+
+### Why choose multi-cloud?
+
+- A particular provider has the best service for a workload
+- A company already has contracts, skills, or systems with more than one provider
+- Legal or geographic requirements differ between workloads
+- The organization wants negotiating leverage or reduced dependence on one provider
+- A recovery plan requires a separate provider
+
+### The cost of multi-cloud
+
+Multi-cloud is not automatically more reliable. It usually requires duplicated identity, networking, security, monitoring, deployment, and support practices. Provider services that look similar often have different APIs, limits, failure behavior, and billing rules. Moving large datasets can be slow and expensive, a problem known as **data gravity**: data attracts the applications and services that depend on it.
+
+There is also a portability trade-off. An application built only on common compute, storage, and networking primitives may be easier to move, but it may give up useful provider-managed capabilities. An application deeply integrated with proprietary databases, queues, or AI services may be faster to build and operate, but harder to migrate. Portability is a design choice, not a free feature.
+
+Two common multi-cloud patterns are:
+
+| Pattern | Description | Main challenge |
+| --- | --- | --- |
+| **Active-active** | The same workload serves users from two providers at the same time | Keeping data, routing, and behavior consistent |
+| **Active-passive** | One provider serves users while another is prepared for recovery | Keeping the standby environment current and regularly tested |
+
+Using different providers for different workloads is sometimes called **polycloud**. It can be a sensible best-fit strategy, but it is not the same as making every workload run everywhere.
+
+## How to choose a model
+
+Start with requirements, not with the number of clouds that sounds most advanced. Ask:
+
+1. **Data and regulation:** Where may data be stored and processed? Are there residency, privacy, or industry requirements?
+2. **Control:** Do you need custom hardware, network isolation, operating-system control, or a disconnected environment?
+3. **Availability and recovery:** What are the required recovery time objective (RTO) and recovery point objective (RPO)? Would another zone, region, or provider actually improve recovery?
+4. **Connectivity and latency:** How close must the workload be to users, devices, or another system? Can the required network connection be maintained?
+5. **Skills and operations:** Can the team secure, monitor, patch, and troubleshoot every environment consistently?
+6. **Total cost:** Include compute, storage, support, staff, licenses, connectivity, egress, backups, and the cost of duplicated tools.
+7. **Portability and exit:** Which parts of the application and data must be movable if a provider, contract, or policy changes?
+
+A practical rule is:
+
+> **Choose the simplest model that satisfies the workload's real constraints.**
+
+For many new applications, public cloud is a sensible starting point. A private or hybrid design may be justified by regulation, existing systems, specialized hardware, or connectivity constraints. Multi-cloud should solve a specific business or technical problem; adopting it only to avoid commitment often creates complexity without providing useful resilience.
+
+## Security across all models
+
+Security responsibility changes with the model, but it never disappears. In a public cloud, the provider normally protects the facilities, physical hardware, and core platform. The customer still controls identities, permissions, network rules, application code, data, and many service settings. In a private environment, the customer may also operate the physical and virtualization layers.
+
+Hybrid and multi-cloud environments add boundaries that must be secured deliberately. Professional teams commonly use:
+
+- Federated identity and least-privilege access across environments
+- Encryption in transit and at rest, with a clear key-management strategy
+- Network segmentation and explicit rules between workloads
+- Centralized logs, asset inventory, vulnerability management, and policy checks
+- Tested backups and recovery procedures rather than untested claims of resilience
+- Infrastructure as code and repeatable deployment pipelines
+
+The most dangerous boundary is often not between providers. It is between teams that assume another team owns a permission, key, firewall rule, or backup.
+
+## A realistic example
+
+Suppose a growing retailer has a legacy inventory system in its own data center. It places its web application and managed database in a public cloud to gain elasticity, but connects the application to the inventory system over a private link. Later, it uses a second public provider for analytics because that platform fits the data team's needs.
+
+This is a **hybrid multi-cloud** architecture. It may be the right answer, but the team must also operate the connection to the data center, two cloud identity systems, data synchronization, several monitoring tools, and a recovery plan. The architecture is valuable only if those operational costs are acceptable.
+
+## Summary
+
+- **Public cloud** uses provider-owned infrastructure shared by many customers through logical isolation.
+- **Private cloud** is a cloud operating model dedicated to one organization; it is not simply any on-premises server room.
+- **Hybrid cloud** intentionally connects private and public environments so they can work together.
+- **Multi-cloud** uses two or more public cloud providers; it is different from multi-region and hybrid cloud.
+- More control can mean more operational responsibility.
+- More clouds do not automatically provide better availability or lower cost.
+- Security, connectivity, data movement, skills, and total cost should drive the decision.
+
+### Check your understanding
+
+1. Does "public cloud" mean that every resource and file is publicly accessible? Why or why not?
+2. What makes a private cloud different from a traditional on-premises data center?
+3. Is using two regions from one provider multi-cloud? Explain.
+4. What new problems can appear when an application depends on a private environment and a public cloud?
+5. Name one reason to use multi-cloud and one cost or operational risk it introduces.
+6. Which deployment model would you choose for a new application, and what requirements support your choice?

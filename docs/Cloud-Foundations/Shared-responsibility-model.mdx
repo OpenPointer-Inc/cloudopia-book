@@ -1,0 +1,504 @@
+---
+sidebar_position: 5
+description: "Understand how cloud security and compliance responsibilities are divided between providers and customers."
+---
+
+# Shared responsibility model
+
+Cloud providers operate secure data centers and offer security tools, but they cannot know whether your application permissions, data policies, or recovery plan are correct. The **shared responsibility model** explains which security and operational responsibilities belong to the cloud service provider and which remain with the customer.
+
+The model is one of the most important ideas in cloud security. Many incidents happen because a team assumes that the provider is responsible for a task that actually belongs to the customer, such as patching a virtual machine, restricting a storage bucket, or removing an old administrator account.
+
+The model does not mean that responsibilities are vague. It means that they must be identified for each service and workload.
+
+By the end of this lesson, you should be able to:
+
+- Explain the difference between security **of** the cloud and security **in** the cloud
+- Describe how responsibility changes across IaaS, PaaS, and SaaS
+- Identify customer responsibilities for identity, data, configuration, monitoring, and recovery
+- Distinguish inherited, shared, and customer-specific controls
+- Build a practical responsibility matrix for a cloud workload
+
+## Start with a simple analogy
+
+Imagine that you rent an apartment in a large building.
+
+- The building owner protects the structure, elevators, main electricity, and common areas.
+- You decide who receives a key to your apartment.
+- You decide what you store inside and whether you leave the door unlocked.
+- You are responsible for the software, devices, and information that you bring into the apartment.
+
+If the building's foundation has a problem, the owner must respond. If you leave an important document outside your unlocked door, the building owner did not automatically make that document secure.
+
+Cloud works in a similar way. The provider protects the cloud platform it operates. The customer protects the workloads, identities, data, and configurations placed on that platform.
+
+## The two sides of the model
+
+Cloud providers often describe the boundary using two phrases:
+
+### Security of the cloud
+
+This is the provider's responsibility. It usually includes:
+
+- Physical data centers and physical access
+- Power, cooling, and environmental controls
+- Physical servers, storage, and networking equipment
+- The virtualization layer and host systems
+- The provider's core cloud services
+- Security of the provider's own employees and operations
+
+### Security in the cloud
+
+This is the customer's responsibility. It usually includes:
+
+- Customer data and its classification
+- Human and workload identities
+- Access permissions and authentication
+- Application code and dependencies
+- Customer-controlled network rules
+- Operating systems on IaaS virtual machines
+- Service configuration, backups, logging, and recovery choices
+
+A simplified boundary looks like this:
+
+```text
+Customer data, identities, applications, and configuration
+----------------------------------------------------------
+Provider-managed platform, hosts, hardware, and facilities
+```
+
+The line moves when you choose a more managed service. The customer normally manages more in IaaS and less in PaaS or SaaS. The line never means that the customer has no responsibilities.
+
+## Responsibility by service model
+
+The following table is a useful starting point. It describes common responsibility boundaries, not a contract for every product.
+
+| Responsibility area | IaaS | PaaS | SaaS |
+| --- | --- | --- | --- |
+| Physical facilities and hardware | Provider | Provider | Provider |
+| Host systems and virtualization | Provider | Provider | Provider |
+| Guest operating system | Customer | Provider | Provider |
+| Runtime and platform software | Customer | Provider | Provider |
+| Application code | Customer | Customer | Provider |
+| Customer data and classification | Customer | Customer | Customer |
+| Identities, roles, and access use | Customer | Customer | Customer |
+| Tenant configuration and settings | Customer | Customer | Customer |
+| Client devices and endpoints | Customer | Customer | Customer or shared |
+| Network access rules | Customer, within provider capabilities | Shared | Provider baseline plus customer tenant settings |
+| Backup and recovery objectives | Customer chooses and tests | Customer chooses and tests | Shared and service-specific |
+
+For example:
+
+- With an IaaS virtual machine, the provider protects the physical host, but the customer patches the guest operating system and configures the virtual firewall.
+- With a PaaS application platform, the provider usually patches the operating system and runtime, but the customer secures the application, secrets, permissions, and data.
+- With a SaaS collaboration application, the provider operates the application, but the customer manages users, sharing policies, data governance, and the devices used to access it.
+
+The exact service documentation always wins. A managed database, container platform, serverless function, and SaaS product can each have a different boundary.
+
+## Three kinds of control ownership
+
+Security controls usually fall into three categories:
+
+### Inherited controls
+
+The provider implements the control, and the customer relies on it. Physical data-center access control is a common example for a public-cloud customer.
+
+The customer should still verify what is covered, which regions and services are included, and what evidence the provider supplies.
+
+### Shared controls
+
+Both parties implement related parts of a control, often at different layers.
+
+For patch management:
+
+- The provider patches the physical hosts and hypervisors.
+- The customer patches the guest operating system and application dependencies on an IaaS VM.
+
+For configuration management:
+
+- The provider maintains the configuration of its platform.
+- The customer maintains the configuration of its cloud resources and workloads.
+
+### Customer-specific controls
+
+The control depends entirely on the customer's application or business process. Examples include deciding who may approve a payment, classifying customer records, or defining how long a report must be retained.
+
+This classification helps avoid a dangerous sentence: "The provider handles security." The useful question is: **Which provider, which service, which control, and which layer?**
+
+## What the provider normally handles
+
+The provider's responsibilities commonly include:
+
+- Restricting physical access to facilities
+- Maintaining physical servers, disks, and network equipment
+- Securing the hypervisor and host operating systems
+- Operating core service control planes and service infrastructure
+- Maintaining the provider's internal security processes
+- Providing availability and security capabilities described by the service
+- Investigating incidents in provider-controlled infrastructure
+
+The provider may also offer tools for encryption, identity, firewalling, backups, vulnerability detection, and logging. Providing a tool is not the same as configuring it for your workload or responding to every finding.
+
+The provider's service-level agreement (SLA) describes commitments for a particular service. An uptime commitment does not guarantee that your application is configured securely, that a user has the right permissions, or that you can restore your data after accidental deletion.
+
+## What the customer always needs to consider
+
+Across most cloud services, customers retain responsibility for:
+
+- Data and privacy decisions
+- Accounts, identities, and access management
+- Secure configuration of resources they control
+- Applications, APIs, and dependencies
+- Client devices and endpoints
+- Monitoring, detection, and response for their environment
+- Backup, recovery, and business continuity choices
+- Meeting their legal, regulatory, and contractual obligations
+
+The following areas deserve special attention.
+
+## Identity and access management
+
+Cloud consoles and APIs can create, change, or delete large parts of an environment. **Identity and access management (IAM)** is therefore a primary security boundary.
+
+Customers should:
+
+- Protect root, tenant, and emergency accounts with strong authentication.
+- Require phishing-resistant multi-factor authentication where practical.
+- Use federation or single sign-on instead of creating unmanaged long-lived user accounts.
+- Grant the least privilege needed for a task.
+- Separate everyday accounts from privileged administrator accounts.
+- Use workload identities or roles instead of long-lived access keys.
+- Use just-in-time or time-limited privilege for sensitive operations.
+- Review permissions and remove unused identities regularly.
+- Log authentication, authorization, privilege changes, and policy changes.
+- Maintain a controlled break-glass process for emergencies.
+
+Consider a storage bucket containing customer invoices. The provider supplies the storage service and access-control system. The customer decides which identities can read the bucket, whether anonymous access is allowed, how access is logged, and what happens when an employee leaves.
+
+If the bucket is exposed because of an overly broad policy, the storage provider may have operated correctly. The customer used the access-control feature incorrectly.
+
+## Data protection and key management
+
+Data responsibility is more than choosing an encryption checkbox. A useful data lifecycle is:
+
+```text
+Create -> Classify -> Store -> Use -> Share -> Archive -> Delete
+```
+
+For each important dataset, determine:
+
+- What the data contains and how sensitive it is
+- Where it may be stored and processed
+- Which identities and services may access it
+- Whether encryption is required in transit, at rest, or both
+- Who creates, stores, rotates, and can use encryption keys
+- How long the data must be retained
+- How it is backed up and restored
+- How it is deleted, including old copies and replicas
+- Whether logs, exports, caches, and support copies contain the same data
+
+Cloud providers often encrypt data at rest by default or make encryption easy to enable. Encryption does not decide who is allowed to decrypt the data. Access policies and key permissions still matter.
+
+Customer-managed keys can provide additional control, separation of duties, or compliance evidence. They also create additional responsibilities: key availability, rotation, access auditing, recovery, and preventing accidental key deletion. A deleted or disabled key can make otherwise healthy data unreadable.
+
+Backups are also part of data responsibility. Replication is not always a backup. If an incorrect deletion or ransomware event is replicated, every replica may contain the same mistake. Backups need retention rules, access controls, isolation, and restore tests.
+
+## Configuration and change management
+
+Cloud environments can change rapidly through consoles, APIs, pipelines, and automation. A secure environment on Monday can be exposed on Tuesday after one firewall rule or identity policy changes.
+
+Customer-controlled configuration commonly includes:
+
+- Whether a resource is publicly reachable
+- Network routes, security groups, and firewall rules
+- Storage and database access policies
+- IAM roles and service identities
+- Encryption and key settings
+- Logging and alerting destinations
+- Backup schedules and retention
+- Region, zone, quota, and availability choices
+- Runtime, container, and application settings
+
+Professional teams reduce configuration risk by using:
+
+- Infrastructure as code stored in version control
+- Peer review and automated policy checks
+- Secure baseline templates
+- Drift detection and cloud security posture management
+- Separate environments and accounts for different levels of risk
+- Controlled emergency changes with follow-up review
+
+Configuration should be secure by default, but defaults vary by service and may not match the workload's requirements. A team must know which settings are inherited from the provider and which settings it has to configure.
+
+## Applications and workloads
+
+The provider cannot make insecure application logic secure. Customers must address:
+
+- Authentication and authorization in the application
+- Input validation and output handling
+- Dependency and operating-system vulnerabilities
+- API exposure and rate limiting
+- Secrets and credentials
+- Container images and build pipelines
+- Secure error handling and logging
+- Protection against data leakage
+
+In IaaS, the customer usually patches the guest operating system, runtime, web server, and installed libraries. In PaaS, the provider handles more of the base platform, but the customer still secures application code and dependencies that it packages. In SaaS, the customer may not control the application code, but still has to configure tenant security and evaluate integrations.
+
+## A service-specific example: managed databases
+
+Suppose a team uses a managed PostgreSQL service. The provider may handle:
+
+- Physical servers and storage
+- Database host operating systems
+- Database engine maintenance and some patching
+- Service availability mechanisms
+
+The customer may still handle:
+
+- Database users, roles, and permissions
+- Network access and private connectivity
+- Schema and query security
+- Application credentials and secret storage
+- Data classification and retention
+- Backup settings and restore testing
+- Encryption and key-access choices
+- Monitoring for unusual access or behavior
+
+Calling the database "managed" means the provider operates more of it. It does not mean that every setting is safe without review.
+
+## Logging, monitoring, and detection
+
+Security requires visibility. The provider may monitor its physical infrastructure and service platform, but the customer must usually enable and analyze logs for its own environment.
+
+Useful customer-controlled telemetry can include:
+
+- Sign-ins and failed authentication attempts
+- IAM policy and privilege changes
+- Control-plane API calls
+- Storage and database access events
+- Network flow and firewall events
+- Application logs and security events
+- Container, workload, and endpoint activity
+
+A practical logging design should define:
+
+1. Which events must be collected for security, operations, and compliance
+2. Where logs are stored and who can alter or delete them
+3. How long logs are retained
+4. How logs are correlated across accounts, regions, providers, and applications
+5. Which alerts require a human response
+6. How log volume, privacy, and storage cost are controlled
+
+Send important audit logs to a separate, restricted location when possible. If an attacker can modify both the workload and its only copy of the logs, investigation becomes much harder.
+
+Monitoring is not incident response. An alert is only useful when an assigned team can investigate it, contain the problem, and recover the service.
+
+## Incident response in the cloud
+
+Cloud incidents can cross the responsibility boundary. A provider may investigate a compromised host, while the customer investigates a stolen access key that was used to create resources in the customer's account.
+
+Before an incident, the customer should know:
+
+- How to contact the provider's security or support team
+- Which events the provider detects and which events the customer must detect
+- What logs and evidence the provider can supply
+- How to disable sessions, rotate keys, and revoke permissions
+- How to isolate a workload without destroying evidence
+- Which legal, regulatory, customer, and contractual notifications may apply
+- How to restore from a known-good backup
+
+A cloud incident playbook might follow this sequence:
+
+```text
+Detect -> Triage -> Contain -> Preserve evidence
+   -> Eradicate -> Recover -> Notify -> Learn
+```
+
+For example, after a workload identity is compromised, the customer may need to revoke its tokens, disable or rotate credentials, restrict network access, inspect audit logs, identify changed resources, and restore affected data. The provider can supply platform logs and support, but the customer owns the response to activity inside its account unless a contract says otherwise.
+
+Run tabletop exercises and controlled recovery tests. A plan that exists only in a document is not evidence that the organization can execute it.
+
+## Availability, backups, and recovery
+
+The provider normally designs the underlying service for some level of availability. The customer decides how to use that service to meet its own requirements.
+
+Ask:
+
+- What is the required recovery time objective (RTO)?
+- How much data loss is acceptable, expressed as the recovery point objective (RPO)?
+- Does the service replicate across failure domains?
+- Are backups independent from the production identity and account?
+- Can the application be recreated if its configuration is lost?
+- Have restore and failover procedures been tested recently?
+- Are external dependencies included in the recovery plan?
+
+Using several availability zones does not automatically protect against an incorrectly deployed application. Using a second region does not automatically protect against a deleted identity or corrupted data. Resilience is a system property that must be designed and tested.
+
+## Compliance and audit evidence
+
+Provider certifications and attestations are useful, but they do not make the customer compliant automatically. A provider's SOC report, ISO certification, or industry authorization covers a defined scope of the provider's services and controls. It does not prove that the customer configured those services correctly or followed its own policies.
+
+Cloud compliance usually contains three types of evidence:
+
+- **Provider evidence:** Certifications, audit reports, security descriptions, and service commitments
+- **Customer evidence:** IAM reviews, configuration records, vulnerability reports, backup tests, incident exercises, and access logs
+- **Shared evidence:** Contracts, responsibility matrices, service-specific control descriptions, and coordinated incident procedures
+
+The Cloud Security Alliance Cloud Controls Matrix (CCM) provides a vendor-neutral way to organize cloud security and privacy controls. CCM v4.1 contains 207 controls across 17 domains and maps controls to cloud service models and organizational functions. A team can use a framework such as CCM, NIST, ISO, or an internal control set to identify what must be implemented and what evidence must be retained.
+
+Compliance is an ongoing activity, not a certificate collected once. Services, configurations, identities, regulations, and threats change.
+
+## How major providers describe the model
+
+The vocabulary differs, but the core idea is similar:
+
+- **AWS** commonly describes the provider's work as security "of" the cloud and the customer's work as security "in" the cloud. AWS also separates inherited, shared, and customer-specific controls.
+- **Microsoft Azure** publishes a matrix showing how responsibilities shift between on-premises, IaaS, PaaS, and SaaS. It emphasizes that customers retain responsibility for their data and identities.
+- **Google Cloud** uses the idea of **shared fate** to emphasize that the provider should help customers build secure foundations and adopt safer designs. Shared fate does not remove customer responsibility for data, access policies, applications, and configuration.
+
+Do not compare providers using only their general marketing diagrams. Compare the specific services, regions, configurations, contracts, and available evidence for the workload you plan to run.
+
+## Hybrid, multi-cloud, and third-party responsibility
+
+The model becomes more complex when a workload crosses environments:
+
+```text
+Customer
+  |
+  +-- Cloud provider A
+  +-- Cloud provider B
+  +-- Private data center
+  +-- Managed service provider
+  +-- SaaS vendors and their subprocessors
+```
+
+Each environment has its own identity system, network controls, logging format, key management, service documentation, and incident process. A control that is inherited in one environment may be customer-owned in another.
+
+Good multi-environment governance includes:
+
+- A common minimum security baseline
+- Provider-specific responsibility matrices
+- Federated identity with consistent lifecycle and privilege rules
+- Central asset inventory and ownership tags
+- Cross-environment logging and alert routing
+- Documented data flows and key ownership
+- Tested recovery plans for cross-environment dependencies
+- Contracts that define notification, evidence, support, and deletion obligations
+
+An outsourced managed service provider can perform a task on the customer's behalf, such as patching or monitoring. The customer should still verify the scope, service levels, evidence, and escalation path. Outsourcing execution does not make an unowned risk disappear.
+
+## Build your own responsibility matrix
+
+Do not rely only on a generic diagram. Build a matrix for each important workload.
+
+### Step 1: Inventory the workload
+
+List applications, virtual machines, containers, databases, storage, networks, identities, endpoints, SaaS integrations, data stores, and external dependencies.
+
+### Step 2: Identify the service and model
+
+Record the exact provider, region, product, deployment type, and whether the component is IaaS, PaaS, SaaS, managed infrastructure, or a third-party service.
+
+### Step 3: List the controls
+
+Include identity, patching, configuration, encryption, key management, vulnerability management, logging, backup, incident response, availability, and data deletion.
+
+### Step 4: Assign an owner
+
+For every control, name the team or party that performs the work and the person or role accountable for the result. Avoid entries such as "IT" or "the cloud team" without a clear owner.
+
+### Step 5: Define evidence and frequency
+
+Record how the organization proves that the control works and how often it checks it. A permission review may be monthly; a restore test may be quarterly; a policy scan may run continuously.
+
+### Step 6: Test the boundary
+
+Perform configuration reviews, access tests, vulnerability scans, tabletop exercises, and recovery tests. Update the matrix when a service or architecture changes.
+
+A small example looks like this:
+
+| Control | Provider responsibility | Customer responsibility | Useful evidence |
+| --- | --- | --- | --- |
+| Physical data-center access | Secure facilities and physical access | Verify provider scope and attestations | Audit report or certification |
+| IaaS operating-system patching | Patch host and hypervisor | Patch guest OS and applications | Patch dashboard and exceptions |
+| Storage access | Provide storage and policy mechanisms | Configure private access and review policies | Policy scan and access logs |
+| Administrator access | Operate IAM capability | Enforce MFA, least privilege, and reviews | IAM reports and sign-in logs |
+| Database recovery | Provide backup features as documented | Set retention and test restoration | Restore test record |
+| Security incident | Investigate provider-side events | Detect and respond to customer-side events | Runbook, tickets, and postmortem |
+
+## A worked example
+
+Suppose a retailer runs a store on a public cloud:
+
+```text
+Customers
+    |
+    v
+Managed web platform
+    |
+    +-- Managed relational database
+    +-- Object storage for product images
+    +-- SaaS email service
+```
+
+The provider may be responsible for physical infrastructure, the managed web platform's hosts, the database engine platform, object-storage hardware, and the SaaS email application's infrastructure.
+
+The retailer is still responsible for:
+
+- Application authorization, such as ensuring one customer cannot view another customer's orders
+- IAM roles for developers and workloads
+- Private database and storage policies
+- Data classification, retention, encryption choices, and deletion
+- Application and dependency vulnerabilities
+- SaaS email users, mailbox access, forwarding rules, and sensitive content
+- Logging, alerts, backups, restore tests, and incident response
+- Recovery objectives and the plan for a provider or dependency outage
+
+Several controls are shared. The provider maintains the platform and supplies security capabilities; the retailer configures those capabilities and verifies that they meet the store's requirements.
+
+## Common mistakes
+
+- Assuming the provider secures every setting in the account
+- Treating a public cloud as insecure or a private cloud as automatically secure
+- Believing a provider certification proves that the customer's workload is compliant
+- Leaving root or administrator accounts without strong multi-factor authentication
+- Granting broad permissions because they are convenient
+- Assuming encryption at rest replaces access control
+- Treating a managed service as zero-configuration
+- Assuming provider replication is the same as an independently protected backup
+- Enabling logs without assigning anyone to review and respond to them
+- Failing to define provider contacts and evidence requirements before an incident
+- Using one generic responsibility chart for every cloud service
+- Assuming that a managed service provider or SaaS vendor has removed all customer accountability
+
+## Summary
+
+- The shared responsibility model divides cloud security and operational duties between the provider and customer.
+- Providers generally secure the facilities, hardware, virtualization, and provider-managed platform.
+- Customers generally secure data, identities, permissions, configurations, workloads, endpoints, monitoring, and recovery choices.
+- IaaS leaves customers with more responsibility than PaaS, and PaaS leaves more responsibility than SaaS.
+- Controls may be inherited, shared, or customer-specific.
+- A provider's security tools, certifications, and SLA do not replace customer configuration, governance, or testing.
+- The exact service documentation and contract matter more than a generic model diagram.
+- Every important workload should have an owner, evidence, review frequency, and tested response plan for each security control.
+
+### Check your understanding
+
+1. What is the difference between security "of" the cloud and security "in" the cloud?
+2. Who normally patches the guest operating system of an IaaS virtual machine?
+3. Why can a SaaS customer still be responsible for a data exposure?
+4. What is the difference between an inherited control and a shared control?
+5. Why is a provider compliance certification not enough to prove that your application is compliant?
+6. Name three IAM responsibilities that normally remain with the customer.
+7. Why is replication not always a substitute for a backup?
+8. What information should a responsibility matrix record besides the control name?
+
+## Further reading
+
+- [AWS Shared Responsibility Model](https://aws.amazon.com/compliance/shared-responsibility-model/)
+- [Microsoft Azure shared responsibility in the cloud](https://learn.microsoft.com/en-us/azure/security/fundamentals/shared-responsibility)
+- [Google Cloud shared responsibilities and shared fate](https://cloud.google.com/architecture/framework/security/shared-responsibility-shared-fate)
+- [Cloud Security Alliance: Introductory Guidance to the Cloud Controls Matrix](https://cloudsecurityalliance.org/artifacts/introductory-guidance-to-ccm)
+- [CISA Cloud Security Technical Reference Architecture](https://www.cisa.gov/resources-tools/resources/cloud-security-technical-reference-architecture-tra)
+- [NSA and CISA: Uphold the Cloud Shared Responsibility Model](https://media.defense.gov/2024/Mar/07/2003407863/-1/-1/0/CSI-CloudTop10-Shared-Responsibility-Model.PDF)
