@@ -90,6 +90,30 @@
   gap: 16px;
 }
 
+.navLinkGitHub {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 9999px;
+  border: 1.5px solid var(--sp-ink-deep);
+  background: transparent;
+  color: var(--sp-ink-deep);
+  text-decoration: none;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+
+.navLinkGitHub:hover {
+  background: var(--sp-ink-deep);
+  color: var(--sp-on-primary);
+  transform: scale(1.08);
+}
+
+.navLinkGitHub:active {
+  transform: scale(0.96);
+}
+
 /* ---------------- Buttons ---------------- */
 
 .btnPrimary {
@@ -870,6 +894,10 @@
   }
 
   .navActions .navLinkGitHub {
+    display: none;
+  }
+
+  .navActions .btnPrimary {
     display: none;
   }
 

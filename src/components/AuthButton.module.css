@@ -1,0 +1,321 @@
+/* Auth UI (navbar button + modal) on the book's light canvas. */
+
+.skeleton {
+  display: inline-block;
+  width: 84px;
+  height: 34px;
+  border-radius: var(--sp-radius-md);
+  background: var(--sp-press-light);
+}
+
+.signInBtn {
+  display: inline-flex;
+  align-items: center;
+  background: var(--sp-primary);
+  color: var(--sp-on-primary);
+  font-family: var(--sp-font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  border: none;
+  border-radius: var(--sp-radius-md);
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.signInBtn:hover {
+  color: var(--sp-on-primary);
+  transform: translateY(-1px);
+  box-shadow: var(--sp-shadow-float);
+}
+
+/* ---- Signed-in user chip + dropdown ---- */
+
+.userMenu {
+  position: relative;
+}
+
+.userChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+  font-family: var(--sp-font-ui);
+  color: var(--sp-ink-deep);
+  border-radius: var(--sp-radius-md);
+  padding: 4px 8px;
+}
+
+.userChip::-webkit-details-marker {
+  display: none;
+}
+
+.userMenu[open] .userChip {
+  background: var(--sp-press-light);
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--sp-violet-deep);
+  color: var(--sp-on-primary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.userName {
+  font-size: 14px;
+  font-weight: 600;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.caret {
+  border: solid var(--sp-ink-muted);
+  border-width: 0 1.5px 1.5px 0;
+  padding: 2.5px;
+  transform: rotate(45deg);
+  margin-top: -3px;
+}
+
+.userMenu[open] .caret {
+  transform: rotate(-135deg);
+  margin-top: 3px;
+}
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 1000;
+  min-width: 220px;
+  background: var(--sp-canvas-light);
+  border: 1px solid var(--sp-hairline-cloud);
+  border-radius: var(--sp-radius-lg);
+  box-shadow: var(--sp-shadow-press);
+  padding: 14px;
+}
+
+.dropdown::before {
+  content: '';
+  position: absolute;
+  top: -14px;
+  left: 0;
+  right: 0;
+  height: 14px;
+}
+
+.dropdownEmail {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--sp-ink-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--sp-hairline-cloud);
+  padding-bottom: 10px;
+}
+
+.signOutBtn {
+  width: 100%;
+  background: transparent;
+  color: var(--sp-ink-deep);
+  font-family: var(--sp-font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+  border: 1px solid var(--sp-hairline-cool);
+  border-radius: var(--sp-radius-sm);
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.signOutBtn:hover {
+  background: var(--sp-press-light);
+}
+
+/* ---- Modal ---- */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(21, 15, 35, 0.55);
+  backdrop-filter: blur(4px);
+}
+
+.dialog {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  background: var(--sp-canvas-light);
+  border-radius: var(--sp-radius-xxl);
+  box-shadow: var(--sp-shadow-press);
+  padding: 36px 32px 28px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+
+.closeBtn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--sp-ink-muted);
+  cursor: pointer;
+}
+
+.closeBtn:hover {
+  background: var(--sp-press-light);
+  color: var(--sp-ink-deep);
+}
+
+.brand {
+  margin: 0 0 8px;
+  font-family: var(--sp-font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--sp-violet);
+}
+
+.title {
+  margin: 0 0 6px;
+  font-family: var(--sp-font-display);
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--sp-ink-deep);
+}
+
+.subtitle {
+  margin: 0 0 20px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--sp-ink-muted);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sp-ink-deep);
+}
+
+.input {
+  font-family: var(--sp-font-ui);
+  font-size: 15px;
+  color: var(--sp-ink-deep);
+  background: var(--sp-canvas-tint);
+  border: 1px solid var(--sp-hairline-cloud);
+  border-radius: var(--sp-radius-md);
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.input:focus {
+  border-color: var(--sp-violet);
+  box-shadow: 0 0 0 3px rgba(106, 95, 193, 0.15);
+}
+
+.error {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #b3261e;
+  background: rgba(179, 38, 30, 0.08);
+  border-radius: var(--sp-radius-sm);
+  padding: 8px 12px;
+}
+
+.submitBtn {
+  margin-top: 4px;
+  background: var(--sp-primary);
+  color: var(--sp-on-primary);
+  font-family: var(--sp-font-ui);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  border: none;
+  border-radius: var(--sp-radius-md);
+  padding: 12px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.submitBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--sp-shadow-float);
+}
+
+.submitBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.switchText {
+  margin: 18px 0 0;
+  font-size: 14px;
+  color: var(--sp-ink-muted);
+  text-align: center;
+}
+
+.switchBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 700;
+  color: var(--sp-violet);
+  cursor: pointer;
+}
+
+.switchBtn:hover {
+  color: var(--sp-violet-deep);
+  text-decoration: underline;
+}
+
+@media (max-width: 480px) {
+  .dialog {
+    padding: 28px 22px 22px;
+  }
+
+  .userName {
+    display: none;
+  }
+}

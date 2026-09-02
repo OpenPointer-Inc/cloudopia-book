@@ -4,6 +4,12 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
+const cloudopiaAuthUrl =
+  process.env.CLOUDOPIA_AUTH_URL?.trim() ||
+  (process.env.NODE_ENV === 'development'
+    ? 'http://localhost:3000'
+    : 'https://cloudopia.vercel.app');
+
 // Code-block token from DESIGN-sentry.md: night canvas (#150f23), light type.
 const nightPrism = {
   ...prismThemes.dracula,
@@ -25,6 +31,9 @@ const config: Config = {
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: '/',
+  customFields: {
+    cloudopiaAuthUrl,
+  },
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
@@ -99,11 +108,13 @@ const config: Config = {
         },
         { to: '/blog', label: 'Blog', position: 'left' },
         {
-          href: 'https://github.com/OpenPointer-Inc/cloudopia-book',
-          label: 'GitHub',
+          type: 'custom-github',
           position: 'right',
-          className: 'navbar-cta',
-        },
+        } as any,
+        {
+          type: 'custom-auth',
+          position: 'right',
+        } as any,
       ],
     },
     footer: {
@@ -144,7 +155,7 @@ const config: Config = {
             },
             {
               label: 'GitHub',
-              href: 'https://github.com/facebook/docusaurus',
+              href: 'https://github.com/OpenPointer-Inc/cloudopia-book',
             },
           ],
         },

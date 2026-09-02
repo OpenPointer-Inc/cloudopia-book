@@ -127,9 +127,17 @@ body.landing-page .footer {
 
 .navbar {
   background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--sp-hairline-cloud);
   box-shadow: none;
+}
+
+/* backdrop-filter makes .navbar the containing block for position:fixed
+   descendants — it would trap .navbar-sidebar (a child of .navbar) inside the
+   64px navbar box and translate it off-screen on mobile. Desktop only. */
+@media (min-width: 997px) {
+  .navbar {
+    backdrop-filter: blur(8px);
+  }
 }
 
 .navbar__brand {
@@ -158,33 +166,39 @@ body.landing-page .footer {
   color: var(--sp-ink-deep);
 }
 
-/* Filled primary CTA in the navbar (button-primary token). */
-.navbar .navbar-cta.navbar__link {
-  background: var(--sp-primary);
-  color: var(--sp-on-primary);
-  font-family: var(--sp-font-ui);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-  text-transform: uppercase;
-  border-radius: var(--sp-radius-md);
-  padding: 8px 16px;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+/* GitHub icon button in the book navbar — matches the landing‑page style. */
+.navbar .navbar-github-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  border: 1.5px solid var(--sp-ink-deep);
+  background: transparent;
+  color: var(--sp-ink-deep);
+  text-decoration: none;
+  margin-right: 12px;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
 }
 
-.navbar .navbar-cta.navbar__link:hover {
+.navbar .navbar-github-icon:hover {
+  background: var(--sp-ink-deep);
   color: var(--sp-on-primary);
-  transform: translateY(-1px);
-  box-shadow: var(--sp-shadow-float);
+  transform: scale(1.08);
+}
+
+.navbar .navbar-github-icon:active {
+  transform: scale(0.96);
+}
+
+.navbar-sidebar .navbar-github-icon {
+  display: inline-flex;
+  margin: 8px 0;
 }
 
 .navbar-sidebar {
   background: var(--sp-canvas-light);
-}
-
-.navbar-sidebar .navbar-cta.navbar__link {
-  display: inline-flex;
-  margin: 8px 0;
 }
 
 /* ==================== Buttons (button-primary / inverted) ==================== */
