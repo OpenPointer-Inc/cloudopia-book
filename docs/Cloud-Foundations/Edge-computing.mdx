@@ -1,0 +1,164 @@
+---
+sidebar_position: 6
+description: "Learn when to process data near users or devices and how to operate secure edge workloads."
+---
+
+# Edge computing
+
+**Edge computing** runs application processing closer to users, devices, or data sources instead of sending every request to a distant centralized region. The edge can be a device, a factory gateway, a retail branch, a telecommunications site, or a provider location.
+
+Edge computing is not a replacement for the cloud. A common design keeps durable storage, heavy processing, and centralized management in a cloud region while the edge handles time-sensitive or bandwidth-intensive work locally.
+
+By the end of this lesson, you should be able to:
+
+- Explain why a workload might run near users or devices
+- Distinguish edge computing from a point of presence and a cloud region
+- Design around latency, intermittent connectivity, and data consistency
+- Identify the security and operational challenges of distributed edge systems
+
+## Why move work to the edge?
+
+Sending every request to a regional cloud can add network round trips and consume bandwidth. Processing locally can provide:
+
+- **Lower latency:** A nearby workload can respond faster for interactive or real-time actions.
+- **Less bandwidth:** The edge can filter, compress, or aggregate data before sending it to the cloud.
+- **Local operation:** A device or branch can continue limited operation when its connection is slow or unavailable.
+- **Data locality:** Some data can be processed locally before only the required result leaves the site.
+
+Lower latency is not guaranteed. Processing time, queueing, cold starts, routing, and the quality of the local connection also affect the user experience. Measure the complete path.
+
+## A common edge architecture
+
+```text
+Users and devices
+        |
+        v
+Edge gateway or edge workload
+  | local response, filtering,
+  | caching, or control action
+        |
+        v
+Regional cloud services
+  | durable data, analytics,
+  | fleet management, and control plane
+```
+
+The edge often operates the **data plane**, which handles live requests and device data. The regional cloud often operates the **control plane**, which manages configuration, identity, deployments, policies, and aggregated data. The boundary is not universal, but separating the two helps clarify what must work locally and what can wait for the cloud.
+
+## Where is the edge?
+
+| Location | Example use | Main constraint |
+| --- | --- | --- |
+| **Device edge** | A camera, sensor, phone, or vehicle filters data locally | Limited CPU, memory, power, and physical protection |
+| **Site edge** | A factory gateway or branch server controls nearby equipment | Must be maintained remotely and may lose connectivity |
+| **Network edge** | A telecommunications or provider site runs low-latency services | Capacity and supported services vary by location |
+| **Provider PoP** | A CDN or edge function handles requests near users | A PoP mainly delivers traffic and may not support arbitrary workloads |
+| **Cloud region** | Centralized application, database, and analytics services | Users or devices may be far away |
+
+A **point of presence (PoP)** is primarily a network and delivery location. **Edge computing** means executing application logic near the source of the request or data. Some PoPs support edge compute, but the terms are not interchangeable.
+
+## Good edge use cases
+
+Edge computing is useful when distance, bandwidth, or local autonomy matters:
+
+- Industrial systems that need a local safety response
+- Internet of Things (IoT) gateways that aggregate sensor readings
+- Video analysis that should send events instead of raw video
+- Augmented or virtual reality applications sensitive to delay
+- Multiplayer gaming or interactive media requiring nearby processing
+- Retail or branch systems that must continue basic operation during an outage
+- Content delivery and request filtering close to users
+
+Use local control carefully in safety-critical environments. A cloud response can supplement a local safety mechanism, but it should not be the only path when a network outage could create harm.
+
+## Data, state, and consistency
+
+Distributed edge systems must define where the authoritative data lives. Common patterns include:
+
+- **Stateless edge processing:** Validate, transform, or route a request without storing durable state locally.
+- **Filtering and aggregation:** Reduce many raw events to summaries or alerts before sending them to the region.
+- **Local cache:** Keep read data near users, with a defined freshness and invalidation policy.
+- **Store and forward:** Queue local writes while disconnected, then synchronize them when connectivity returns.
+- **Local authority:** Allow a site to make time-sensitive decisions, then reconcile with a central system later.
+
+Disconnected operation often requires **eventual consistency**. Updates made at two sites can conflict, arrive out of order, or be delivered more than once. Use unique event IDs, timestamps or versions, idempotent operations, conflict rules, and explicit retry behavior. Never assume that a local write is durable or synchronized just because it succeeded on the edge device.
+
+## Security at the edge
+
+Edge deployments increase the number of locations and devices that must be trusted and maintained. A secure design commonly uses:
+
+- Unique device or workload identities, not shared credentials
+- Mutual TLS or another authenticated channel between edge and cloud
+- Secure boot, signed software, and protected update mechanisms
+- Short-lived secrets and least-privilege permissions
+- Encryption in transit and at rest
+- Network segmentation between edge workloads and local equipment
+- Minimal collection and retention of sensitive data
+- Tamper detection and physical protection where attackers can reach equipment
+
+An edge node may be physically accessible, run on constrained hardware, or be offline for periods. Do not place an unrestricted cloud administrator credential on it. Assume that an individual node can eventually be compromised and limit the damage it can cause.
+
+## Operating an edge fleet
+
+One edge device is manageable; thousands of locations are a fleet. Operations should provide:
+
+- Automated enrollment, inventory, and configuration
+- Versioned deployments with staged rollout and rollback
+- Health signals, logs, metrics, and local buffering when disconnected
+- Remote access with strong authentication and auditing
+- Capacity monitoring for CPU, memory, storage, and power
+- Time synchronization for logs and event ordering
+- A recovery process for failed hardware or corrupted software
+
+Updates should be safe when connectivity disappears halfway through a deployment. Use an atomic update or fallback image where possible. A bad release can affect every location, so limit the blast radius with canary deployments.
+
+## Resilience and trade-offs
+
+Edge computing can reduce dependence on a distant region, but it introduces new failure modes:
+
+- A local node can fail or lose power.
+- A site can lose its network connection.
+- Edge and regional data can diverge.
+- Hardware and software versions can drift across the fleet.
+- Local capacity may be too small for an unexpected workload.
+
+Define the fallback behavior: continue locally, use a cached result, route to another edge location, or fail safely. Edge processing does not automatically make the whole service highly available. Data replication, failover, and recovery still need explicit design.
+
+Processing data near a user does not automatically satisfy data-residency requirements. Consider where requests, logs, backups, replicas, support access, and software updates are stored or transmitted.
+
+## When not to use edge computing
+
+Centralized regional services may be the better choice when:
+
+- The workload has no meaningful latency or bandwidth requirement.
+- It needs strongly consistent shared state on every operation.
+- The team cannot operate a distributed fleet securely.
+- The cost and complexity of edge deployment exceed the benefit.
+
+Start with a measurable requirement. Add edge processing when it solves a specific latency, connectivity, bandwidth, or locality problem.
+
+## Practical design checklist
+
+1. What response time, bandwidth, or offline requirement justifies running at the edge?
+2. Which decisions must work locally, and which can wait for the region?
+3. Where is authoritative state stored, and how are conflicts resolved?
+4. How are devices identified, updated, monitored, and recovered remotely?
+5. What is the safe fallback when the edge, network, or cloud region fails?
+6. Where do data, logs, backups, and encryption keys cross geographic boundaries?
+
+## Summary
+
+- Edge computing places processing near users, devices, or data sources.
+- It can reduce latency and bandwidth use and support limited operation during disconnection.
+- A PoP delivers network and edge services; edge computing specifically runs application logic near the source.
+- Distributed state requires explicit synchronization, idempotency, conflict handling, and data-lifecycle rules.
+- Security and operations become fleet problems: identities, updates, monitoring, physical access, and recovery must scale.
+- Edge is valuable when it meets a measurable requirement; it is not automatically faster, safer, or more available.
+
+### Check your understanding
+
+1. What problem does edge computing solve that a distant cloud region may not?
+2. How is an edge workload different from a point of presence?
+3. Why can disconnected edge operation lead to eventual consistency?
+4. Name two controls that protect an edge device that may be physically accessible.
+5. What should an application do if its edge node loses contact with the cloud?

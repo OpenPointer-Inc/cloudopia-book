@@ -1,0 +1,156 @@
+---
+sidebar_position: 4
+description: "Learn how cloud regions and availability zones affect latency, placement, and failure recovery."
+---
+
+# Regions and availability zones
+
+Cloud providers organize infrastructure into geographic and failure-isolation boundaries. The most common boundaries are **regions** and **availability zones**.
+
+- A **region** is a separate geographic area containing cloud infrastructure.
+- An **availability zone (AZ)** is an isolated location, or group of locations, within a region.
+
+These boundaries help you place workloads near users, meet data-location requirements, and design for failures. Their exact meaning and guarantees differ by provider and service.
+
+By the end of this lesson, you should be able to:
+
+- Distinguish a data center, availability zone, and region
+- Explain zonal, regional, and global resource scope
+- Choose locations based on latency, compliance, capacity, and recovery
+- Design multi-zone and multi-region architectures without assuming automatic replication
+
+## The location hierarchy
+
+```text
+Global services and routing
+             |
+        Region A
+       /        \
+   Zone A       Zone B
+  /     \      /     \
+Data centers  Data centers
+```
+
+The hierarchy is a useful mental model, not a promise that every provider implements locations identically.
+
+| Term | Meaning | Typical concern |
+| --- | --- | --- |
+| **Data center** | A physical facility containing servers, storage, networks, power, and cooling | Hardware, facility, or local network failure |
+| **Availability zone** | A provider-defined isolation boundary containing one or more discrete facilities | Zone-level power, cooling, or network failure |
+| **Region** | A geographic area containing one or more zones and regional services | Broad outage, disaster, connectivity, or policy boundary |
+| **Multi-region** | An architecture or service that uses more than one region | Cross-region latency, consistency, transfer cost, and recovery |
+
+An availability zone is not simply another rack. Providers generally design zones with independent power, cooling, and networking so that a failure in one zone is less likely to affect another. The physical distance, number of facilities, and exact isolation model are provider-specific.
+
+## Resource scope
+
+Cloud resources commonly have one of three scopes:
+
+- **Zonal:** Created in one zone and dependent on that zone. A VM or attached disk is often zonal.
+- **Regional:** Available across a region or managed by the provider across multiple zones. A regional load balancer or database may use this model.
+- **Global or multi-region:** Designed to be reached or managed across regions, such as global DNS, content delivery, or selected storage services.
+
+These examples are patterns, not universal rules. A service can use a different scope or offer several modes. Always check the product documentation before assuming that a regional resource is replicated, or that a global resource stores data everywhere.
+
+Resource scope affects:
+
+- Where the resource and its data can be placed
+- Which failures it can survive
+- The latency between dependent components
+- Network transfer and cross-zone or cross-region costs
+- How it can be backed up, replaced, or recovered
+
+## Choosing a region
+
+Choose a primary region using requirements rather than a map alone:
+
+- **Latency:** Place user-facing components near the users and systems they communicate with most.
+- **Data residency:** Confirm where data may be stored, processed, logged, backed up, and supported.
+- **Service availability:** The provider may not offer every service, machine type, accelerator, or feature in every region.
+- **Capacity and quotas:** A region can have limited capacity for a particular instance type or service.
+- **Cost:** Prices, taxes, licensing, and data-transfer charges can differ by region.
+- **Recovery:** Select a separate recovery location only if the application, data, identity, and operations can use it.
+
+The closest region is not always the best region. A slightly more distant location may provide a required service or satisfy legal requirements, while a nearby location may not.
+
+## How zones improve resilience
+
+Running redundant components in separate zones can reduce the impact of a local failure:
+
+```text
+Users -> Regional load balancer
+              |
+       +------+------+
+       |             |
+   Zone A        Zone B
+   App 1         App 2
+       \             /
+        +-- Data service
+```
+
+This design works only when:
+
+- Traffic can be routed to healthy instances.
+- The data service has its own multi-zone or failover design.
+- Network, identity, DNS, queues, and other dependencies are not single-zone points of failure.
+- The application can start or continue in the remaining zone.
+
+Zones are connected with low-latency, high-capacity networks, but the latency is not zero and cross-zone traffic may incur charges. Synchronous replication across zones can improve recovery point objectives while adding write latency and creating a dependency on the inter-zone connection.
+
+## Multi-zone and multi-region patterns
+
+| Pattern | Protects against | Main trade-off |
+| --- | --- | --- |
+| **Single zone** | Some instance or process failures | Simple, but a zone outage can stop the workload |
+| **Multi-zone active-active** | Many local facility failures | More capacity and operational complexity; data must support concurrent use |
+| **Multi-zone active-passive** | Many local failures with a standby | Simpler traffic model, but failover and standby freshness must be tested |
+| **Multi-region active-passive** | Some regional or broad connectivity failures | Lower normal cost, but recovery takes time and the standby must be maintained |
+| **Multi-region active-active** | Faster regional failover and concurrent traffic | Highest complexity around routing, data consistency, deployment, and cost |
+
+Multi-region does not mean that every resource or database is automatically copied. You must define how application code, configuration, identities, data, secrets, queues, and backups are reproduced or replicated.
+
+## Failure isolation is not absolute
+
+Zones and regions reduce correlated failures; they do not eliminate them. Components can still share:
+
+- A provider control plane or management dependency
+- An application bug or bad deployment
+- An identity account or encryption key
+- A DNS or certificate configuration
+- A third-party API or network provider
+- A data corruption or deletion event that replication copies everywhere
+
+For a high-value workload, document which failure domain the design must survive and test that scenario. A second region that has never been deployed, monitored, or restored is not a dependable recovery site.
+
+## Practical location checklist
+
+1. Where are users, data sources, and important dependencies located?
+2. Which regulations or contracts restrict storage and processing locations?
+3. Which services, capacities, quotas, and support features exist in the candidate region?
+4. Which resources are zonal, regional, or global?
+5. What happens if one zone or region fails, and how is traffic redirected?
+6. How are data, secrets, identities, logs, and backups recovered in the alternate location?
+7. Have latency, transfer cost, failover, and restore behavior been measured?
+
+## Summary
+
+- A region is a geographic cloud area; an availability zone is a provider-defined isolation boundary within a region.
+- A data center is physical infrastructure, while zones and regions are service-placement and failure-domain concepts.
+- Resource scope can be zonal, regional, or global, and scope does not by itself guarantee replication.
+- Multiple zones can reduce the impact of a local failure; multiple regions address broader failures at higher cost and complexity.
+- Location decisions must include latency, data residency, service availability, capacity, cost, and recovery.
+- Redundancy is only useful when dependencies, data, identities, and failover procedures are designed and tested too.
+
+### Check your understanding
+
+1. What is the difference between a region and an availability zone?
+2. Why is a zonal VM not protected from a zone outage just because it runs in the cloud?
+3. What does resource scope tell you?
+4. Why can synchronous cross-zone replication increase both resilience and latency?
+5. Why is a second region not automatically a disaster-recovery solution?
+
+## Further reading
+
+- [AWS Regions and Availability Zones](https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-regions-availability-zones.html)
+- [Google Cloud geography and regions](https://docs.cloud.google.com/docs/geography-and-regions)
+- [Azure Availability Zones overview](https://learn.microsoft.com/en-us/azure/reliability/availability-zones-overview)

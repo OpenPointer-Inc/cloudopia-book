@@ -1,0 +1,172 @@
+---
+sidebar_position: 8
+description: "Understand how cloud virtual machines work, how they are managed, and when to use them."
+---
+
+# Virtual machines
+
+A **virtual machine (VM)** is a software-defined computer. It has virtual CPU, memory, storage, and network interfaces, and runs its own **guest operating system**. A cloud provider runs the VM on a physical server using a hypervisor, so several isolated VMs can share one host.
+
+Cloud providers may call a VM an **instance**. The names differ, but the model is the same: you rent a computer that you can create, configure, resize, stop, and delete through software.
+
+By the end of this lesson, you should be able to:
+
+- Describe how a VM is built from virtual hardware and a guest OS
+- Explain the role of images, disks, networks, and instance types
+- Secure, operate, and scale a VM-based workload
+- Choose between VMs, containers, and more managed services
+
+## The VM mental model
+
+```text
+Physical server
+       |
+   Hypervisor
+       |
+  +----+------------------+
+  |                       |
+VM A                    VM B
+Guest OS + app          Guest OS + app
+```
+
+The hypervisor allocates physical resources to each VM and isolates their memory, devices, and execution. The guest operating system behaves as if it owns a computer, even though the underlying hardware is shared.
+
+Virtualization improves utilization and makes provisioning fast. It does not remove physical limits: a host can run out of CPU, memory, storage I/O, power, or network capacity.
+
+## What makes up a VM?
+
+| Component | Purpose |
+| --- | --- |
+| **vCPU** | Virtual processing capacity scheduled on physical CPUs |
+| **Memory** | Working space for the operating system and applications |
+| **Boot disk** | Stores the guest OS and usually the initial configuration |
+| **Data disks** | Store application data on persistent or provider-managed storage |
+| **Virtual network interface** | Connects the VM to private networks, load balancers, or the internet |
+| **Machine image** | A template containing an OS and optional software configuration |
+| **Identity and metadata** | Supplies startup information and permissions to cloud APIs |
+
+An **instance type** or **machine size** defines a bundle of CPU, memory, storage, network, and sometimes accelerator capacity. Common families favor general-purpose, compute-intensive, memory-intensive, storage-intensive, or GPU workloads.
+
+The advertised vCPU count is not always the same as a dedicated physical core. Providers may use scheduling, CPU bursting, or shared host capacity. Review performance limits and test the workload instead of choosing a size from CPU count alone.
+
+## VM lifecycle
+
+A typical lifecycle is:
+
+```text
+Choose image and size -> Create -> Configure -> Run and monitor
+                                      |             |
+                              Patch and back up  Stop, rebuild, or delete
+```
+
+When creating a VM, define its image, size, network placement, access method, storage, identity, and startup configuration. Use infrastructure as code or repeatable configuration management so the VM can be rebuilt instead of being configured by memory.
+
+Stopping, restarting, and deleting are different operations:
+
+- **Restart:** Reboots the guest OS; attached storage may remain.
+- **Stop:** Releases or powers down compute capacity according to the provider's model; disks and other resources may continue to incur charges.
+- **Delete or terminate:** Removes the VM. Attached disks, public IPs, and backups may be retained or deleted depending on their settings.
+
+Never assume that deleting a VM deletes all of its data, or that stopping it stops every charge. Check the service behavior.
+
+## Images and immutable servers
+
+A machine image is a starting template, not automatically a secure build. A professional image pipeline should:
+
+- Start from a trusted, minimal base image
+- Apply operating-system and application updates
+- Scan packages and configuration for vulnerabilities
+- Remove temporary files, test accounts, and embedded credentials
+- Version and approve the image before deployment
+
+Do not bake long-lived secrets into an image. Retrieve short-lived credentials through a workload identity or a secrets service at runtime.
+
+With an **immutable infrastructure** pattern, a changed VM is replaced with a new image rather than manually repaired in place. This makes deployments and rollback more repeatable. Persistent data should live on managed storage or a database, not only on the VM's local disk.
+
+## Storage and networking
+
+VM storage usually has two forms:
+
+- **Persistent block storage:** A virtual disk designed to survive a VM restart or replacement. It still needs backups and a defined failure model.
+- **Ephemeral or local storage:** Fast storage attached to the host. It may disappear when the VM stops, is moved, or fails, so use it for caches and temporary data unless the provider explicitly guarantees otherwise.
+
+Network the VM as if it were a real server:
+
+- Place it in a private subnet when it does not need direct internet access.
+- Use a load balancer instead of exposing every application VM publicly.
+- Restrict inbound and outbound traffic with security groups or firewalls.
+- Use a managed identity or role rather than storing cloud access keys on disk.
+- Encrypt management traffic and application traffic where appropriate.
+
+## Security responsibility
+
+The provider normally secures the physical host, hypervisor, and underlying facility. The customer normally secures:
+
+- The guest operating system and installed packages
+- VM users, SSH keys, passwords, and administrative access
+- Host firewall rules, application configuration, and secrets
+- Data encryption, logging, vulnerability management, and backups
+
+A VM is not secure merely because it runs in a public cloud. Patch it, remove unnecessary services, use least privilege, restrict management access, and monitor authentication and privilege changes.
+
+## Availability and scaling
+
+A single VM is a single point of failure. A more resilient design uses multiple instances behind a load balancer, spreads them across availability zones, and keeps important state in a separately designed data service.
+
+```text
+Users -> Load balancer -> VM in zone A
+                     \-> VM in zone B
+                              |
+                       Managed data service
+```
+
+Use health checks and autoscaling when demand or failures require capacity to change. An autoscaling group can replace an unhealthy VM, but only if the image, startup process, permissions, and data design support safe replacement.
+
+Providers may use live migration to move some VMs during maintenance. This can reduce interruption, but it is not a substitute for application redundancy, backups, or tested recovery.
+
+## VMs, containers, and managed services
+
+| Choice | Main characteristic | Good fit |
+| --- | --- | --- |
+| **Virtual machine** | Includes a complete guest OS and offers broad control | Custom OS settings, legacy software, specialized agents, or strong workload isolation |
+| **Container** | Shares the host kernel and packages an application with its dependencies | Fast, repeatable deployment of compatible applications |
+| **Managed platform** | Provider operates more of the runtime and infrastructure | Standard applications where reducing server operations matters |
+
+Containers can run inside VMs, and a single architecture can use all three choices. Choose the highest level of abstraction that still meets the workload's operating-system, performance, security, and portability requirements.
+
+## Cost and capacity choices
+
+VM cost is usually affected by compute time, attached storage, network traffic, operating-system licenses, and public IP or managed-service usage. Common purchasing options include:
+
+- **On-demand:** Flexible, but usually the highest unit price.
+- **Committed use:** Lower price in exchange for a time or capacity commitment.
+- **Spot or preemptible capacity:** Lower price with the possibility of interruption.
+
+Use interruptible capacity for workloads that can retry, checkpoint, or be replaced. Do not place a single critical database or irreplaceable process on capacity that can be reclaimed without a recovery design.
+
+## Practical design checklist
+
+1. Select a machine size based on measured CPU, memory, storage, and network needs.
+2. Build VMs from versioned, patched images and keep secrets outside the image.
+3. Separate application compute from persistent data.
+4. Restrict network and administrative access to the minimum required.
+5. Make the VM replaceable through automation and tested startup configuration.
+6. Spread critical instances across failure domains and monitor meaningful health checks.
+7. Include compute, storage, transfer, licenses, backups, and operations in the cost estimate.
+
+## Summary
+
+- A VM is an isolated software-defined computer running on a physical host through a hypervisor.
+- Images define the starting system; instance types define resource capacity; disks and networks connect the workload to its environment.
+- Persistent data, backups, identities, and patches need explicit designs; they are not solved by creating a VM.
+- Immutable images and automation make VM fleets easier to reproduce and recover.
+- Multiple VMs across failure domains provide more availability than one large VM.
+- VMs offer control, while containers and managed platforms can reduce operational work.
+
+### Check your understanding
+
+1. What is the difference between a physical host and a guest operating system?
+2. Why should persistent application data not depend only on a VM's local disk?
+3. Why is a machine image not a safe place for long-lived secrets?
+4. How does a load balancer and multiple availability zones improve a VM-based service?
+5. When might a container or managed platform be a better choice than a VM?

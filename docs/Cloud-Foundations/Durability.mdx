@@ -1,0 +1,143 @@
+---
+sidebar_position: 11
+description: "Understand how cloud systems protect stored data from loss, corruption, deletion, and infrastructure failure."
+---
+
+# Durability
+
+**Durability** is the likelihood that data remains intact and recoverable over time. It answers the question, "Will my data still exist and be correct later?" It is different from availability, which asks whether the data can be accessed right now.
+
+Data can be durable but temporarily unavailable during an outage. It can also be available but incorrect, deleted, or corrupted. A reliable design considers both properties.
+
+By the end of this lesson, you should be able to:
+
+- Distinguish durability, availability, and data integrity
+- Explain replication, erasure coding, and backups
+- Choose protections for deletion, corruption, and ransomware
+- Connect durability to RPO, retention, encryption keys, and restore testing
+
+## What can threaten data?
+
+Durability must account for more than a failed disk:
+
+- Hardware failure or a damaged storage system
+- Bit rot or silent data corruption
+- Accidental deletion or an incorrect retention policy
+- Application bugs that overwrite valid data
+- Compromised credentials or ransomware
+- A facility, availability zone, or region failure
+- A lost, disabled, or deleted encryption key
+
+Several copies do not protect against every threat. If an incorrect deletion or corrupted write is replicated immediately, all copies may contain the same problem.
+
+## Layers of data protection
+
+| Mechanism | What it helps with | Important limitation |
+| --- | --- | --- |
+| **Replication** | Hardware or location failure; fast access to another copy | Replication can copy deletion, corruption, or ransomware |
+| **Erasure coding** | Multiple disk or node failures with less storage overhead than full copies | Rebuilding data consumes time and resources; it is not a backup |
+| **Snapshots** | Point-in-time recovery from a recent state | A snapshot may share the same account, region, or failure domain as production |
+| **Backups** | Recovery from deletion, corruption, and older points in time | Backups need retention, access protection, capacity, and restore testing |
+| **Versioning and soft delete** | Recovery after an overwrite or recent deletion | Old versions consume storage and still need protection |
+| **Immutability** | Prevents authorized users or malware from changing data during a retention period | Retention settings and privileged access must be governed carefully |
+| **Checksums and scrubbing** | Detects and repairs silent corruption | Detection does not replace a recoverable copy |
+
+Strong designs combine several layers rather than expecting one feature to solve every failure mode.
+
+## Replication and erasure coding
+
+**Replication** stores multiple complete copies. Copies can be placed across disks, racks, buildings, availability zones, or regions. The farther apart the copies are, the more failure types they can survive, but latency and transfer cost generally increase.
+
+Replication can be:
+
+- **Synchronous:** A write is acknowledged after multiple locations confirm it. This reduces recent data loss but can add latency and may stop writes when a replica is unavailable.
+- **Asynchronous:** A write is acknowledged before every location has received it. This can improve performance and availability, but the newest changes may be lost during a sudden failure.
+
+**Erasure coding** divides data into fragments and creates parity fragments. The original data can be reconstructed when some fragments are missing. It can use storage more efficiently than several full copies, but reconstruction may be slower and more compute-intensive.
+
+The provider's storage implementation is usually hidden from the customer. You still need to understand the service's replication scope, failure assumptions, and recovery guarantees.
+
+## Replication is not a backup
+
+Replication is mainly about keeping a current copy available. A backup is an older, recoverable copy with a retention policy and some degree of independence from production.
+
+A practical starting point is the **3-2-1 rule**:
+
+- Keep at least three copies of important data.
+- Use at least two storage systems or types.
+- Keep at least one copy isolated from normal production access.
+
+In cloud environments, isolation may mean a separate account or project, separate credentials, a different region or provider, immutable storage, or an offline export. The important property is that a production administrator or compromised workload cannot alter every copy through the same path.
+
+Backups should include the data and the information needed to use it, such as schemas, application configuration, dependency versions, and encryption-key recovery procedures.
+
+## Data integrity and correctness
+
+Durability does not guarantee that data is correct. A storage system can preserve every byte of a bad application write perfectly.
+
+Use several controls:
+
+- Checksums or hashes to detect changes during storage and transfer
+- Storage scrubbing and repair to detect silent corruption
+- Transactions and constraints to protect database correctness
+- Version history to compare or restore previous states
+- Validation at ingestion and before important business actions
+- Auditing to identify who changed or deleted data
+
+**Consistency** is another related but different concept. Consistency describes what a reader is allowed to see after a write. A system can be durable while different replicas temporarily return different versions. Choose the consistency model based on the application requirement.
+
+## Retention, deletion, and encryption keys
+
+Durability includes the complete data lifecycle:
+
+```text
+Create -> Store -> Replicate -> Back up -> Retain -> Restore -> Delete
+```
+
+Define how long data and its versions must be retained, who may delete them, and how legal holds or regulatory requirements affect deletion. Test lifecycle policies; an incorrectly scoped expiration rule can remove production data or required backups.
+
+Encryption protects confidentiality, but it adds a recoverability dependency. If a backup exists but its encryption key is permanently unavailable, the data may be practically unrecoverable. Protect key-management permissions, document rotation and recovery procedures, and test restoration with the same key controls used in an incident.
+
+Some managed storage services advertise very high durability percentages for a specific service, storage class, and configuration. Treat that number as service-specific: read what it covers, what it excludes, and whether customer deletion, lost credentials, corrupted input, or unavailable keys are outside the guarantee.
+
+## RPO and restore testing
+
+The **recovery point objective (RPO)** is the maximum amount of recent data that the organization can afford to lose. An RPO of one hour might require backups or replication at least hourly, but frequency alone is not enough. A backup must complete successfully and be restorable.
+
+For every important dataset, test:
+
+- Restoring a complete copy into an isolated environment
+- Recovering from accidental deletion and corrupted data
+- Rebuilding indexes, schemas, permissions, and application configuration
+- Retrieving and using required encryption keys
+- Meeting the expected RPO and recovery time objective
+- Preventing restored data from overwriting the original evidence
+
+Monitor backup jobs, replication lag, failed integrity checks, storage growth, and retention-policy changes. A green backup job is not proof that the business can recover; a successful restore is stronger evidence.
+
+## Practical design checklist
+
+1. Identify the data-loss scenarios that matter to the business.
+2. Set RPO, retention, and recovery-time requirements for each dataset.
+3. Use replication for availability and independent backups for recovery.
+4. Cross the failure domain that the design must survive.
+5. Enable versioning, immutability, or soft delete where the risk justifies it.
+6. Protect backup identities and encryption keys from the production workload.
+7. Test restores and verify the recovered data, not only the backup status.
+
+## Summary
+
+- Durability protects data from being lost or corrupted over time; availability protects access right now.
+- Replication, erasure coding, checksums, versioning, immutability, and backups solve different problems.
+- Replication can spread a deletion or bad write, so it is not a replacement for an independent backup.
+- RPO determines how much recent data loss is acceptable; retention determines how far back recovery can reach.
+- Encryption keys, identities, lifecycle policies, and application correctness are part of data recoverability.
+- Durability claims are service-specific, and restore testing is the best evidence that a recovery design works.
+
+### Check your understanding
+
+1. How is durability different from availability?
+2. Why is a replicated database not automatically a backup system?
+3. What problem does erasure coding solve?
+4. Why should a backup be isolated from production credentials?
+5. How can an encryption-key failure make an intact backup unrecoverable?

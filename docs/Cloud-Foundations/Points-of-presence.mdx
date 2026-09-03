@@ -1,0 +1,116 @@
+---
+sidebar_position: 5
+description: "Understand how points of presence reduce latency and deliver caching, routing, and security near users."
+---
+
+# Points of presence
+
+A **point of presence (PoP)** is a network location where a cloud, internet, or content-delivery provider connects users to its backbone and edge services. A PoP commonly contains routers, high-capacity links, DNS infrastructure, cached content, TLS termination, web application firewalls, or DDoS protection.
+
+A PoP is usually smaller in scope than a full cloud region. It may be operated in a provider-owned facility or a colocation data center. Its purpose is to move traffic and perform selected work close to users, not necessarily to run every kind of application or database.
+
+By the end of this lesson, you should be able to:
+
+- Explain what a PoP does in a request path
+- Distinguish a PoP from a data center, region, and edge compute location
+- Describe how CDN caching and anycast routing improve user experience
+- Identify the consistency, security, cost, and availability trade-offs of edge delivery
+
+## A request through a PoP
+
+Consider a user requesting an image or web page:
+
+```text
+User -> DNS and network routing -> PoP -> Origin service in a region
+                                  |
+                         Cache, WAF, TLS, and
+                         traffic controls
+```
+
+If the PoP has a valid cached copy, it can return the response without contacting the origin. This is a **cache hit**. If it does not have the content, it retrieves the response from the origin, may cache it, and then returns it. This is a **cache miss**.
+
+Keeping the round trip to the origin out of every request can reduce latency and protect the origin from large amounts of repeated traffic. A PoP can also absorb attacks or reject invalid requests before they reach application servers.
+
+## PoP, data center, region, and edge compute
+
+| Term | Main idea |
+| --- | --- |
+| **Data center** | A physical facility containing compute, storage, networking, power, and cooling |
+| **Region** | A geographic area containing cloud infrastructure and often multiple availability zones |
+| **PoP** | A network and edge-service location that connects users to a provider or origin |
+| **Edge compute** | Running application code at or near the user, often in a PoP |
+
+These terms can overlap. A PoP may be inside a data center, and a provider may offer edge compute at only some of its PoPs. A PoP is not automatically a complete availability zone or a replacement for regional infrastructure.
+
+## The main edge mechanisms
+
+### Content delivery and caching
+
+A content delivery network (CDN) uses PoPs to cache content near users. Caching works best for content that is public or can be safely shared, such as images, downloads, stylesheets, and versioned JavaScript files.
+
+The cache decision depends on a **cache key**, which may include the host name, path, query string, and selected headers. A poor cache key can serve the wrong variant to a user; an overly detailed key can reduce the cache hit rate.
+
+Important controls include:
+
+- **Time to live (TTL):** How long an item may remain fresh
+- **Invalidation:** Removing or replacing cached content before its TTL expires
+- **Cache-Control:** Response instructions that control whether and how content may be cached
+- **Stale serving:** Returning an older copy while the PoP refreshes it or the origin recovers
+
+Personalized responses and rapidly changing data require more care. Never cache sensitive responses publicly unless the cache policy and key provide the required isolation.
+
+### Anycast routing
+
+With **anycast**, the same IP address is announced from multiple network locations. Internet routing usually sends a user to a nearby or lower-cost network path, and a provider can withdraw an announcement from an unhealthy PoP.
+
+Anycast generally means "best available network route," not "the geographically closest site." Routing can change because of congestion, failures, or provider policy. Applications should therefore measure real user latency instead of assuming that a PoP is always nearby.
+
+### Security at the edge
+
+PoPs commonly provide:
+
+- DDoS traffic absorption and rate limiting
+- Web application firewall rules
+- Bot and abuse detection
+- TLS termination and certificate handling
+- Authentication or request filtering before the origin
+
+If TLS terminates at the PoP, the edge service can inspect the request. The organization must trust and secure that service, protect its certificates, and use encryption again between the PoP and the origin when required.
+
+## Design trade-offs
+
+Edge delivery is not automatically better for every workload. Consider:
+
+- **Consistency:** A cached response may be older than the origin data.
+- **Invalidation:** Purging content globally can take time and may cost money.
+- **Availability:** A cached page may remain available during an origin problem, but a cache miss still depends on the origin.
+- **State:** Writes and sessions at the edge need an explicit consistency and storage design.
+- **Observability:** Logs from many PoPs must be correlated with origin logs and request IDs.
+- **Data location:** Requests, logs, and TLS processing may occur in locations with different legal requirements.
+- **Cost:** PoPs can reduce origin traffic while increasing CDN, request, or data-transfer charges.
+
+An effective pattern is to keep authoritative data and complex state in regional services, then use PoPs for delivery, protection, and carefully selected stateless processing.
+
+## Practical design checklist
+
+1. Which responses are safe to cache, and what is their cache key?
+2. How quickly must changed content become visible to users?
+3. What happens when the PoP cannot reach the origin?
+4. Where do TLS termination, logs, and edge code run?
+5. Can the origin handle a cache purge, cache miss storm, or regional failover?
+
+## Summary
+
+- A PoP is a network and edge-service location near users or network peers.
+- PoPs reduce latency, cache repeated content, and filter traffic before it reaches an origin.
+- Anycast chooses a network route to a healthy location but does not guarantee the physically nearest PoP.
+- Caching requires deliberate TTLs, cache keys, invalidation, and privacy controls.
+- Edge services can improve performance and protection, but they do not automatically provide durable storage or a highly available origin.
+
+### Check your understanding
+
+1. What is the difference between a PoP and a full cloud region?
+2. What happens during a cache hit and a cache miss?
+3. Why can a cache key create a security problem?
+4. What does anycast routing select?
+5. Why does adding PoPs not remove the need to design a reliable origin service?

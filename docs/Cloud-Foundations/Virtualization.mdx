@@ -1,0 +1,162 @@
+---
+sidebar_position: 15
+description: "Understand how virtualization abstracts physical resources into isolated, flexible computing environments."
+---
+
+# Virtualization
+
+**Virtualization** is the technique of presenting logical computing resources instead of exposing physical hardware directly. A software layer can divide one physical computer into multiple isolated environments, or combine and abstract many physical resources into one service.
+
+Virtualization is one of the foundations of cloud computing. It lets a provider pool hardware, provision resources through software, and move workloads without requiring customers to know which physical machine is being used.
+
+By the end of this lesson, you should be able to:
+
+- Explain the difference between a physical host and a virtual guest
+- Identify common forms of virtualization
+- Describe how CPU, memory, storage, and network resources are abstracted
+- Recognize virtualization's benefits, performance costs, and security boundaries
+
+## The core idea
+
+```text
+Physical servers, disks, and networks
+                 |
+       Virtualization layer
+                 |
+   Logical machines, disks, and networks
+                 |
+        Applications and services
+```
+
+In server virtualization, a physical machine is the **host** and each virtual machine is a **guest**. The guest sees virtual CPU, memory, disks, and network interfaces. It can run its own operating system without knowing the exact physical hardware underneath.
+
+The software that creates and controls virtual machines is called a **hypervisor** or virtual machine monitor. See [Virtual machines](./Virtual-machines) and [Hypervisors](./Hypervisors) for the related concepts.
+
+## Forms of virtualization
+
+| Form | What is abstracted | Example use |
+| --- | --- | --- |
+| **Server or hardware virtualization** | CPU, memory, devices, and a complete machine | Run several VMs on one physical server |
+| **Operating-system virtualization** | User space above one host kernel | Run isolated containers |
+| **Storage virtualization** | Physical disks and arrays | Present logical volumes or a managed block-storage service |
+| **Network virtualization** | Switches, routers, and network boundaries | Create virtual networks, subnets, and firewalls |
+| **Desktop or application virtualization** | A desktop environment or application session | Deliver a remote desktop or isolated application |
+
+This lesson focuses on server virtualization, but the same principle applies elsewhere: provide a useful logical interface while managing the physical implementation underneath.
+
+## Why organizations virtualize
+
+Virtualization can provide:
+
+- **Consolidation:** Multiple workloads share one host instead of requiring one physical server each.
+- **Higher utilization:** The platform can assign spare CPU, memory, and storage capacity to other workloads.
+- **Isolation:** A guest has controlled access to hardware and is separated from other guests.
+- **Fast provisioning:** New environments can be created from templates rather than assembled from physical parts.
+- **Portability:** A VM image can often move between compatible hosts or environments.
+- **Operational flexibility:** Administrators can clone, snapshot, restart, or migrate workloads.
+- **Testing and recovery:** Teams can create isolated test systems and rebuild known configurations.
+
+Virtualization does not guarantee perfect isolation, zero downtime, or portability across every platform. The guest still depends on the host, the virtualization layer, and physical infrastructure.
+
+## How resources are abstracted
+
+### CPU
+
+The guest sees one or more **virtual CPUs (vCPUs)**. The hypervisor schedules them onto physical CPU threads. If several guests need CPU at the same time, they compete according to the platform's scheduling and priority rules.
+
+### Memory
+
+The hypervisor maps guest memory to physical memory and prevents one guest from reading another guest's assigned pages. Some platforms use memory overcommit, ballooning, or swapping to handle more virtual memory than is physically available. These techniques can reduce performance under contention.
+
+### Storage
+
+A virtual disk appears to the guest as a block device, while the host may store it in a file, volume, distributed storage system, or local device. The abstraction makes storage easier to provision, but performance still depends on the underlying I/O path, queue depth, latency, and available capacity.
+
+### Networking
+
+The guest uses virtual network interfaces connected to a virtual switch. The platform can apply virtual routing, firewall rules, address translation, and traffic shaping before traffic reaches a physical network.
+
+## Sharing and contention
+
+Cloud and virtualization platforms often **oversubscribe** resources: they assign more virtual capacity than would be needed if every guest used its maximum simultaneously. This works when workloads have different usage patterns, but contention can cause variable performance.
+
+Important signals include:
+
+- CPU steal or ready time, showing that a VM is waiting for physical CPU
+- Memory pressure, swapping, or ballooning
+- Storage latency and I/O queue depth
+- Network throughput, packet loss, or bandwidth limits
+- Noisy-neighbor effects from another workload sharing resources
+
+Providers reduce contention through scheduling, capacity planning, workload placement, quotas, and dedicated hardware options. For strict latency, licensing, or performance requirements, a workload may need a dedicated host or bare-metal server.
+
+## Useful virtualization capabilities
+
+Virtualization platforms commonly support:
+
+- **Templates and cloning:** Create consistent guests from a base image.
+- **Snapshots:** Capture a point-in-time disk state for testing or short-term rollback.
+- **Live migration:** Move a running VM to another compatible host with little or no planned interruption.
+- **Resource resizing:** Change assigned CPU or memory, sometimes with a restart.
+- **Device passthrough:** Give a VM controlled direct access to a device such as a GPU.
+
+These features have limits. A snapshot may not capture application-consistent data. Live migration depends on compatible CPU, storage, networking, and device configuration. A snapshot is not automatically an independent backup, and a portable image may still depend on a specific CPU architecture, driver, disk format, or cloud service.
+
+## Virtualization and containers
+
+| Characteristic | Virtual machine | Container |
+| --- | --- | --- |
+| Operating-system kernel | Each VM normally has its own guest kernel | Containers share the host kernel |
+| Startup and size | Usually heavier and slower to start | Usually lighter and faster to start |
+| Isolation boundary | Hardware virtualization and guest OS boundary | Operating-system isolation features |
+| Compatibility | Can run a different guest OS from the host | Requires a compatible host kernel interface |
+| Common use | Stronger workload separation or custom OS control | Packaging and scaling application processes |
+
+Containers frequently run inside VMs in public clouds. Neither technology removes the need for application security, resource limits, identity controls, and monitoring.
+
+## Security and responsibility
+
+Virtualization creates a security boundary, but the hypervisor and management plane are high-value components. A vulnerability in the virtualization layer could affect multiple guests, so providers patch and harden it as part of the platform.
+
+In a public cloud, the provider normally manages the physical host and hypervisor. The customer still manages the guest operating system, applications, identities, network rules, data, and backups. In a private environment, the organization may own every layer and must operate the hypervisor securely.
+
+Use defense in depth:
+
+- Keep hosts, hypervisors, and guest systems patched.
+- Restrict management interfaces and separate them from workload traffic.
+- Apply least privilege to operators and automation.
+- Use secure images and scan them before deployment.
+- Monitor host, guest, network, and control-plane events.
+- Treat snapshots, templates, and virtual disks as sensitive data.
+
+## Virtualization in the cloud
+
+When you request a cloud VM, you normally choose a region, machine size, image, network, and storage. The provider selects a physical host and applies its scheduling, isolation, and maintenance policies.
+
+Managed databases, container platforms, serverless functions, and storage services may also use VMs internally. The customer does not need to operate the hypervisor, but understanding the abstraction helps explain limits such as quotas, startup time, I/O performance, maintenance, and failure domains.
+
+## Practical design checklist
+
+1. Which resources are virtual, and what physical limits still apply?
+2. Is the workload sensitive to CPU contention, memory pressure, I/O latency, or network limits?
+3. Which data must survive VM replacement, host failure, or a snapshot rollback?
+4. Can the workload use containers or a managed platform instead of a full guest OS?
+5. Who patches and secures each layer of the virtualization stack?
+6. Have migration, restore, performance, and failure behavior been tested?
+
+## Summary
+
+- Virtualization abstracts physical resources into logical machines, disks, networks, or environments.
+- Server virtualization lets multiple isolated VMs share a physical host through a hypervisor.
+- Resource scheduling, overcommit, and device abstraction improve flexibility but can introduce contention and performance limits.
+- Snapshots, templates, resizing, live migration, and passthrough are useful capabilities with important constraints.
+- VMs provide a stronger OS boundary than containers, while containers usually start faster and use fewer resources.
+- Virtualization improves utilization and provisioning; it does not remove physical dependencies or customer security responsibilities.
+
+### Check your understanding
+
+1. What is the difference between a host and a guest?
+2. Why can two VMs with the same vCPU allocation have different performance?
+3. Why is a VM snapshot not automatically a backup?
+4. How does a container differ from a VM?
+5. Which virtualization responsibilities normally remain with a public-cloud customer?

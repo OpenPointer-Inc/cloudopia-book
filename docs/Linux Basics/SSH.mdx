@@ -1,0 +1,356 @@
+---
+sidebar_position: 9
+description: "Understand secure remote access with SSH, key authentication, host verification, forwarding, and troubleshooting."
+---
+
+# 🐧 SSH
+
+**SSH (Secure Shell)** is a protocol and collection of tools for securely logging in to another computer, running remote commands, transferring files, and forwarding network connections. It encrypts the connection and authenticates both the server and, depending on the method, the user.
+
+The main tools are:
+
+- `ssh`: Connect to a remote host or run a remote command.
+- `sshd`: The SSH server daemon that accepts connections.
+- `ssh-keygen`: Create and manage key pairs.
+- `ssh-agent` and `ssh-add`: Hold private keys for a session.
+- `sftp` and `scp`: Transfer files over SSH.
+
+By the end of this lesson, you should be able to:
+
+- Connect to a Linux server and run commands safely
+- Use public-key authentication and protect private keys
+- Verify host keys and understand `known_hosts`
+- Configure aliases, jump hosts, and port forwarding
+- Harden and troubleshoot SSH access without locking yourself out
+
+## The SSH connection model
+
+```text
+SSH client                         SSH server
+ssh command  -> encrypted TCP connection -> sshd
+                                             |
+                                  user authentication
+                                             |
+                                  shell, command, or tunnel
+```
+
+An SSH connection negotiates cryptographic algorithms, establishes session keys, verifies the server's host key, authenticates the user, and then opens one or more channels. A connection can carry an interactive shell, a non-interactive command, a file transfer, or a port-forwarding channel.
+
+The default TCP port is `22`, but administrators can configure another port. Changing the port is not a substitute for authentication, network restrictions, or patching.
+
+## Connecting to a server
+
+The basic form is:
+
+```bash
+ssh username@server.example.com
+```
+
+Useful options include:
+
+```bash
+ssh -p 2222 username@server.example.com
+ssh -i ~/.ssh/id_ed25519 username@server.example.com
+ssh username@server.example.com 'uname -a'
+ssh -o ConnectTimeout=10 username@server.example.com
+```
+
+The last command runs remotely and exits. The command string is interpreted by the remote shell, so quoting matters when local and remote shell expansions could be confused.
+
+For diagnostics:
+
+```bash
+ssh -v username@server.example.com
+ssh -vvv username@server.example.com
+ssh -G server.example.com
+```
+
+`-v` through `-vvv` increases client debugging output. `-G` prints the effective client configuration without connecting. Do not paste private keys or sensitive command output into a public issue.
+
+## Host keys and `known_hosts`
+
+The server has a host key pair that identifies the SSH server. On the first connection, the client displays the server's host-key fingerprint and asks whether to trust it. Verify the fingerprint through a trusted channel, such as provider console output, a separate administrative channel, or a documented inventory.
+
+The client normally stores accepted host keys in:
+
+```text
+~/.ssh/known_hosts
+```
+
+The server's host key is different from a user's login key:
+
+| Item | Stored on | Purpose |
+| --- | --- | --- |
+| **Host private key** | Server | Proves the identity of the server |
+| **Host public key** | Client's `known_hosts` | Lets the client verify the server |
+| **User private key** | User's client | Proves the user's identity |
+| **User public key** | Server's `authorized_keys` | Tells the server which user keys are accepted |
+
+If SSH reports that a host key changed, do not blindly remove the old entry or disable checking. The host may have been rebuilt, but the warning can also indicate DNS manipulation or a man-in-the-middle attempt. Confirm the new fingerprint first.
+
+Useful inspection commands are:
+
+```bash
+ssh-keygen -F server.example.com
+ssh-keygen -lf ~/.ssh/known_hosts
+```
+
+After a verified rebuild, `ssh-keygen -R server.example.com` can remove old entries so the new key can be recorded. Use it only after confirming why the key changed.
+
+## Public-key authentication
+
+Public-key authentication uses a key pair. The private key stays on the client; the public key is placed in the remote user's `~/.ssh/authorized_keys` file.
+
+Create an Ed25519 key pair on the client:
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -C "admin@laptop"
+```
+
+Protect the private key with a strong passphrase. If you already have a key at that path, do not overwrite it until you understand which systems use it.
+
+Copy the public key using an existing permitted login:
+
+```bash
+ssh-copy-id -i ~/.ssh/id_ed25519.pub username@server.example.com
+```
+
+`ssh-copy-id` is not installed everywhere. If it is unavailable, use a trusted existing session or your provider's access mechanism to place the one-line public key in `~/.ssh/authorized_keys`. Never copy the private key to the server.
+
+Typical client permissions are:
+
+```bash
+chmod 700 ~/.ssh
+chmod 600 ~/.ssh/id_ed25519
+chmod 644 ~/.ssh/id_ed25519.pub
+chmod 600 ~/.ssh/config
+```
+
+On the server, the remote user's home directory, `.ssh` directory, and `authorized_keys` file must be owned correctly and must not be writable by untrusted users. OpenSSH's strict-mode checks can reject unsafe ownership or permissions.
+
+## Using `ssh-agent`
+
+An SSH agent holds decrypted private keys in memory so you do not type a passphrase for every connection:
+
+```bash
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/id_ed25519
+ssh-add -l
+```
+
+The agent is useful, but any process or host allowed to use the agent socket may be able to request signatures. Avoid forwarding your agent to hosts you do not trust. Prefer a jump host with `ProxyJump` when you only need network reachability through a bastion.
+
+Remove a key from the agent when it is no longer needed:
+
+```bash
+ssh-add -d ~/.ssh/id_ed25519
+```
+
+## Client configuration
+
+Instead of repeating options, define a host alias in `~/.ssh/config`:
+
+```text
+Host web-prod
+    HostName server.example.com
+    User deploy
+    IdentityFile ~/.ssh/id_ed25519
+    IdentitiesOnly yes
+    ConnectTimeout 10
+```
+
+Then connect with:
+
+```bash
+ssh web-prod
+```
+
+`IdentitiesOnly yes` tells the client to use the configured identity instead of offering many keys from the agent. This can avoid authentication failures caused by server limits on the number of offered keys.
+
+Keep the configuration file private. Do not place passwords or private-key material in it.
+
+## Jump hosts and private servers
+
+A private server may not accept connections from the public internet. A bastion or jump host can provide a controlled path:
+
+```bash
+ssh -J bastion.example.com deploy@private-server.internal
+```
+
+`ProxyJump` first connects to the bastion and then forwards the SSH connection to the final host. The final host still has its own host key, user authentication, and authorization requirements.
+
+Restrict bastions carefully. A bastion should have limited inbound sources, strong authentication, current patches, centralized logging, and no unnecessary workload access.
+
+## Port forwarding
+
+SSH can carry TCP connections through an encrypted session. This is useful for administration, but forwarding can bypass network boundaries if it is not governed.
+
+### Local forwarding
+
+Make a remote-internal service available on the local loopback address:
+
+```bash
+ssh -N -L 127.0.0.1:8080:internal-web:80 bastion.example.com
+```
+
+Connections to local port `8080` travel through the bastion and are sent to `internal-web:80` from the remote side. `-N` means no remote shell is requested.
+
+### Remote forwarding
+
+Expose a local service through a remote loopback port:
+
+```bash
+ssh -N -R 127.0.0.1:9000:127.0.0.1:9000 server.example.com
+```
+
+The remote binding is loopback-only by default. Allowing remote hosts to reach it requires additional server configuration such as `GatewayPorts` and should be treated as an exposure.
+
+### Dynamic forwarding
+
+Create a local SOCKS proxy whose connections exit from the remote host:
+
+```bash
+ssh -N -D 127.0.0.1:1080 server.example.com
+```
+
+Applications must be explicitly configured to use the proxy. Audit and restrict forwarding when SSH is used in sensitive environments.
+
+## File transfer and remote execution
+
+Use SFTP for an interactive file-transfer session:
+
+```bash
+sftp username@server.example.com
+```
+
+For simple copies:
+
+```bash
+scp ./local.txt username@server.example.com:/tmp/local.txt
+scp username@server.example.com:/var/log/example.log ./example.log
+```
+
+`rsync` can efficiently synchronize directories when installed on both sides:
+
+```bash
+rsync -av --progress -e ssh ./site/ username@server.example.com:/srv/site/
+```
+
+Review destination paths carefully. A typo combined with write access can overwrite data. Use backups and a dry-run option such as `rsync --dry-run` before a large synchronization.
+
+## Securing the SSH server
+
+The server configuration is commonly located in `/etc/ssh/sshd_config` and files under `/etc/ssh/sshd_config.d/`. A hardening approach usually includes:
+
+- Patch OpenSSH and the operating system.
+- Restrict SSH network access to trusted sources, VPNs, or a bastion where possible.
+- Use individual accounts and public-key authentication.
+- Protect private keys with passphrases and control agent use.
+- Disable direct root login when an administrative alternative exists.
+- Disable password authentication only after testing a working key and recovery path.
+- Use `AllowUsers` or `AllowGroups` to limit who may log in.
+- Apply multi-factor authentication where the environment supports it.
+- Log authentication attempts and alert on unusual activity.
+- Limit forwarding, tunneling, and other features that the workload does not need.
+
+Illustrative settings might look like this:
+
+```text
+PubkeyAuthentication yes
+PermitRootLogin no
+PasswordAuthentication no
+AllowGroups sshusers
+```
+
+These settings are not safe to paste blindly. Authentication methods, provider access tools, automation, break-glass accounts, and distribution defaults must be considered first.
+
+Validate before reloading:
+
+```bash
+sudo sshd -t
+sudo systemctl reload sshd
+```
+
+The service may be named `ssh` instead of `sshd`. Keep an existing session open while testing a new session, so a configuration mistake does not remove your only access path.
+
+## SSH and cloud servers
+
+Cloud access adds controls outside Linux:
+
+```text
+Client -> DNS or IP -> Cloud firewall/security group -> Network route -> sshd
+                                                        |
+                                                   Linux user and key
+```
+
+A successful key does not help if the cloud firewall blocks TCP port `22`. Conversely, an allowed port does not prove that `sshd` is listening or that the user/key is authorized.
+
+Prefer private addresses, identity-aware access tools, provider serial consoles, or managed session services when they meet the operational requirements. If a public SSH endpoint is necessary, restrict source networks and monitor it.
+
+## Troubleshooting SSH
+
+| Symptom | Likely checks |
+| --- | --- |
+| Connection times out | DNS, route, cloud firewall, host firewall, security group, server availability |
+| Connection refused | `sshd` not running, wrong port, no listener, local firewall actively rejecting |
+| Host key warning | Verify whether the server was rebuilt or the name/IP changed; do not bypass verification |
+| `Permission denied (publickey)` | Correct username, private-key path, public key in `authorized_keys`, file ownership/modes, `sshd` configuration |
+| Too many authentication failures | Agent offered too many keys; use `IdentitiesOnly yes` or `-i` |
+| Works interactively but not in automation | Different `PATH`, environment, TTY, working directory, key agent, or shell startup files |
+| Login succeeds but command fails | User permissions, shell, filesystem, `sudo`, service environment, or remote command quoting |
+
+Use these commands on the client:
+
+```bash
+ssh -vvv username@server.example.com
+ssh -G server.example.com
+ssh-keygen -lf ~/.ssh/id_ed25519.pub
+```
+
+On the server, inspect:
+
+```bash
+sudo ss -ltnp | grep ':22'
+sudo sshd -t
+sudo journalctl -u sshd --since "15 minutes ago"
+sudo journalctl -u ssh --since "15 minutes ago"
+```
+
+Only one of the service names may exist. Also check the remote user's home directory and `.ssh` path with `namei -l` when permissions are suspected.
+
+## Practical design checklist
+
+1. How is the server host key verified and managed during rebuilds?
+2. Where is the user's private key stored, and is it protected by a passphrase?
+3. Are individual accounts, least privilege, and a recovery path in place?
+4. Is SSH reachable only from approved networks or through a controlled access path?
+5. Does the server permit only the authentication and forwarding features it needs?
+6. Are SSH logs monitored, retained, and connected to incident response?
+7. Can a new administrator test access without risking the existing session?
+
+## Summary
+
+- SSH provides encrypted remote access, command execution, file transfer, and TCP forwarding.
+- Host keys authenticate the server; user key pairs authenticate users.
+- Private keys must remain private, while public keys belong in the remote user's `authorized_keys` file.
+- `known_hosts` protects against silently connecting to an unexpected server; host-key changes must be verified, not bypassed.
+- `ProxyJump` supports controlled access to private hosts, and forwarding should be restricted because it can bypass network boundaries.
+- SSH server hardening includes patching, least privilege, key authentication, network restrictions, logging, and a tested recovery path.
+- Troubleshoot both cloud/network controls and Linux controls: route, port, `sshd`, identity, key files, permissions, and logs.
+
+### Check your understanding
+
+1. What is the difference between a server host key and a user's login key?
+2. Why should a changed host-key warning not be ignored automatically?
+3. What is the purpose of `authorized_keys` and `known_hosts`?
+4. Why should you verify `sshd -t` before reloading the SSH server?
+5. What does `ProxyJump` do?
+6. Why should `PasswordAuthentication no` be applied only after testing a recovery path?
+7. What is the difference between local and remote port forwarding?
+8. Which layers would you check if SSH times out before authentication?
+
+## Further reading
+
+- [OpenBSD `ssh(1)` manual](https://man.openbsd.org/OpenBSD-7.7/ssh.1)
+- [OpenBSD `ssh_config(5)` manual](https://man.openbsd.org/ssh_config.5)
+- [OpenBSD `sshd_config(5)` manual](https://man.openbsd.org/sshd_config.5)

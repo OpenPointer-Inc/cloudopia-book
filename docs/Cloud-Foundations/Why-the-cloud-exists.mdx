@@ -1,0 +1,139 @@
+---
+sidebar_position: 2
+description: "Understand the technical and economic pressures that led to cloud computing."
+---
+
+# Why the cloud exists
+
+Cloud computing exists because organizations need computing capacity that can be obtained quickly, shared efficiently, and scaled as demand changes. Instead of every organization purchasing and operating all of its own servers, a provider pools infrastructure and offers it as a programmable service.
+
+The cloud did not make physical infrastructure disappear. It changed how that infrastructure is owned, operated, provisioned, and paid for.
+
+By the end of this lesson, you should be able to:
+
+- Explain the limits of traditional infrastructure ownership
+- Describe the characteristics that make a service cloud-like
+- Identify the business and technical benefits of cloud computing
+- Recognize the costs and trade-offs that cloud introduces
+
+## The problem with owning everything
+
+In a traditional on-premises model, an organization purchases servers, storage, network equipment, licenses, buildings, power, and cooling. It also hires people to install, patch, monitor, secure, and replace them.
+
+That model can work well, but it creates recurring problems:
+
+- **Peak capacity is expensive:** A system must often be sized for its busiest period, leaving hardware underused most of the time.
+- **Procurement is slow:** Buying, delivering, installing, and configuring equipment can take weeks or months.
+- **Growth is uncertain:** A business may not know whether demand will remain small or increase suddenly.
+- **Resilience costs more:** A second site, spare equipment, and independent power and networks require significant investment.
+- **Specialist work is repeated:** Each organization has to operate many of the same basic infrastructure components.
+
+Cloud providers address these problems by building large facilities, automating operations, and serving many customers from shared pools of capacity.
+
+## What makes cloud computing different?
+
+NIST describes cloud computing using five essential characteristics:
+
+| Characteristic | Meaning |
+| --- | --- |
+| **On-demand self-service** | A customer can provision resources without a provider employee handling every request |
+| **Broad network access** | Services are reachable over networks through standard mechanisms and many kinds of client devices |
+| **Resource pooling** | Provider resources are shared and dynamically assigned to customers with logical isolation |
+| **Rapid elasticity** | Capacity can be added and released quickly, sometimes automatically, as demand changes |
+| **Measured service** | Usage is metered, monitored, and reported for operations and billing |
+
+These characteristics separate cloud computing from simply renting a server. A hosted server may be useful, but a cloud platform also emphasizes self-service, pooling, automation, and measurement.
+
+## Why the provider model works
+
+Cloud providers can offer this model through several reinforcing technologies and practices:
+
+- **Economies of scale:** Large purchases and facilities can spread fixed costs across many customers.
+- **Resource pooling:** Workloads use a shared capacity pool, so unused capacity can be reassigned instead of remaining tied to one organization.
+- **Virtualization and isolation:** Physical servers can be divided into controlled virtual resources while keeping customers separated.
+- **Automation:** APIs and orchestration can create, configure, move, and replace resources consistently.
+- **Specialized operations:** Providers maintain power, cooling, networks, hardware, and core platforms at a scale that most customers cannot match.
+- **Managed services:** Databases, queues, identity systems, analytics, and other capabilities can be operated as products instead of built from raw servers.
+
+Scale can reduce the customer's starting cost and operational burden, but it does not guarantee a lower total cost. Providers still charge for infrastructure, support, data transfer, managed features, and capacity reserved for resilience.
+
+## What customers gain
+
+Cloud computing is attractive when its operating model matches the workload:
+
+- **Speed:** Teams can create environments in minutes and test ideas without waiting for hardware.
+- **Variable capacity:** A service can add resources for a busy period and release them afterward.
+- **Global reach:** Workloads can be placed in regions and edge locations closer to users.
+- **Choice:** Teams can select from many compute, storage, database, networking, security, and analytics services.
+- **Reduced undifferentiated work:** A managed service can remove routine infrastructure tasks so teams focus on the application or business process.
+- **Usage visibility:** Metering makes resource consumption visible, which supports budgets, chargeback, and capacity decisions.
+
+These are capabilities, not guarantees. A team must configure scaling, security, backups, monitoring, and recovery correctly.
+
+## The commercial change: capacity as a service
+
+Buying infrastructure usually requires a large upfront investment and long replacement cycles. Cloud usage is commonly billed by consumption, subscription, or a commitment to use a certain amount of capacity.
+
+This can improve cash flow and reduce the risk of buying hardware that is never needed. It can also make costs less predictable. A workload that scales, transfers large amounts of data, or leaves resources running can produce a larger bill than expected.
+
+Cloud services are often described as changing **capital expenditure (CapEx)** into **operating expenditure (OpEx)**. The accounting treatment depends on the contract and organization, so treat this as a commercial model rather than an accounting rule.
+
+## What the cloud does not solve
+
+Moving a workload to the cloud does not automatically provide:
+
+- **Security:** Customers still manage identities, permissions, data, application code, and configuration.
+- **Availability:** A single VM, database, region, or dependency can still fail.
+- **Performance:** Network latency, quotas, noisy neighbors, and poor application design still matter.
+- **Low cost:** Idle resources, data egress, backups, and duplicated services can be expensive.
+- **Portability:** Provider-specific databases, queues, and APIs can make migration difficult.
+- **Compliance:** The customer still has to classify data, configure controls, and retain evidence.
+
+The provider supplies building blocks and operating capabilities. The customer remains responsible for using them appropriately.
+
+## When cloud may not be the best choice
+
+Cloud is not automatically the right answer for every workload. An organization may choose on-premises, private cloud, hybrid, or public cloud based on its requirements.
+
+Consider alternatives or a hybrid design when:
+
+- Demand is stable and existing infrastructure is already well utilized.
+- A workload must operate with unreliable connectivity or in a disconnected environment.
+- Specialized hardware is required and is not available from the provider.
+- Data, licensing, latency, or regulatory constraints make a particular location unsuitable.
+- Migration and ongoing operating costs exceed the expected benefit.
+
+These constraints do not always rule out cloud. They identify requirements that must be tested instead of assumed away.
+
+## A practical decision model
+
+Before moving a workload, ask:
+
+1. How variable is demand, and how quickly must capacity change?
+2. Which infrastructure tasks does the team want to operate or outsource?
+3. What latency, data-residency, security, and recovery requirements apply?
+4. What is the total cost, including staff, connectivity, data transfer, backups, and support?
+5. Which provider dependencies are acceptable, and what is the exit plan?
+
+The best reason to use cloud is not that it is fashionable. It is that its combination of self-service, pooled resources, automation, managed services, and measured usage solves a real problem.
+
+## Summary
+
+- Cloud computing evolved to provide flexible, shared, and programmable access to infrastructure.
+- Traditional infrastructure can be slow to procure, expensive to scale for peaks, and costly to make resilient.
+- NIST's cloud characteristics are on-demand self-service, broad network access, resource pooling, rapid elasticity, and measured service.
+- Providers gain efficiency from scale, pooling, virtualization, automation, and specialized operations.
+- Cloud can improve speed and flexibility, but it does not automatically provide security, availability, performance, or low cost.
+- Choose cloud or another deployment model based on workload requirements and total cost.
+
+### Check your understanding
+
+1. Why can sizing an on-premises system for peak demand leave capacity underused?
+2. What does resource pooling allow a cloud provider to do?
+3. Which NIST characteristic makes usage visible for billing and capacity management?
+4. Why does cloud adoption not automatically make an application secure or highly available?
+5. Name one situation where a hybrid or non-cloud environment might be reasonable.
+
+## Further reading
+
+- [NIST SP 800-145: The NIST Definition of Cloud Computing](https://csrc.nist.gov/pubs/sp/800/145/final)

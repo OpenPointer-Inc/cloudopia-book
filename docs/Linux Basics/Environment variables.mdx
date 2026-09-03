@@ -1,0 +1,356 @@
+---
+sidebar_position: 8
+description: "Understand Linux environment variables, inheritance, shell startup files, services, and safe configuration."
+---
+
+# 🐧 Environment variables
+
+An **environment variable** is a named value passed to a process. Applications use environment variables for configuration such as `PATH`, locale, temporary-file locations, feature flags, and service endpoints.
+
+Environment variables are simple strings in a process environment. They are not a universal database and they are not automatically shared by every process on the machine. Understanding who creates an environment and which processes inherit it prevents many "works in my shell" problems.
+
+By the end of this lesson, you should be able to:
+
+- Inspect, set, export, and unset environment variables
+- Explain how variables move from a parent process to a child process
+- Configure variables for interactive shells, scripts, and `systemd` services
+- Avoid common `PATH`, quoting, startup-file, and secret-management mistakes
+- Debug differences between shell, SSH, cron, container, and service environments
+
+## Shell variables and environment variables
+
+Bash can hold ordinary shell variables. A variable becomes part of the environment inherited by child processes when it is exported.
+
+```bash
+APP_MODE=development
+bash -c 'printf "child sees: %s\n" "${APP_MODE-unset}"'
+
+export APP_MODE
+bash -c 'printf "child sees: %s\n" "$APP_MODE"'
+```
+
+The first child does not receive `APP_MODE`; the second child does. The export attribute belongs to the shell variable, so later commands started by that shell inherit the value.
+
+Inspect variables and the environment:
+
+```bash
+printf '%s\n' "$APP_MODE"
+printenv APP_MODE
+env | sort
+declare -p APP_MODE
+```
+
+`env` lists the environment passed to commands, while `declare -p` shows Bash's variable attributes. `set` also displays shell functions and variables, so it is not the same as an environment listing.
+
+## Inheritance and process boundaries
+
+When a process creates a child, the child receives a copy of the parent's environment. When a program is started with `exec`, that environment is passed to the new program. The child can change its own copy without changing the parent.
+
+```text
+Parent shell environment
+          |
+          | fork or start
+          v
+Child process receives a copy
+          |
+          | exec
+          v
+Program reads its environment
+```
+
+A child does not automatically see changes made later in the parent. A running service also does not receive a new variable merely because you added it to your shell profile; the service must be restarted or configured through its own manager.
+
+## Ways to set a variable
+
+Set a shell variable for the current shell:
+
+```bash
+APP_PORT=8080
+```
+
+Export it for future child processes:
+
+```bash
+export APP_PORT=8080
+```
+
+Set a variable for one command only:
+
+```bash
+APP_MODE=test ./run-tests
+env APP_MODE=test ./run-tests
+```
+
+Unset it:
+
+```bash
+unset APP_PORT
+```
+
+The one-command form is useful in scripts because it avoids changing the rest of the shell's environment. Quoting is important when values contain spaces or shell metacharacters:
+
+```bash
+export GREETING="Hello Linux"
+printf '%s\n' "$GREETING"
+```
+
+Use double quotes around expansions unless you intentionally want word splitting and wildcard expansion.
+
+## Empty versus unset
+
+An unset variable and a variable set to an empty string are different:
+
+```bash
+unset OPTIONAL_VALUE
+EMPTY_VALUE=''
+
+printf 'unset: <%s>\n' "${OPTIONAL_VALUE-unset}"
+printf 'empty: <%s>\n' "${EMPTY_VALUE-unset}"
+```
+
+Bash parameter expansion can define defaults or require a value:
+
+```bash
+port="${APP_PORT:-8080}"
+required="${DATABASE_URL:?DATABASE_URL is required}"
+```
+
+`${NAME:-default}` uses the default when `NAME` is unset or empty. `${NAME-default}` uses it only when `NAME` is unset. `${NAME:?message}` stops the command when a required value is absent or empty.
+
+Environment values are strings. Convert and validate numbers, paths, booleans, URLs, and lists in the application rather than assuming that a value such as `false` automatically behaves as a Boolean.
+
+## Important variables
+
+| Variable | Common purpose |
+| --- | --- |
+| `HOME` | User's home directory |
+| `USER` and `LOGNAME` | Login identity used by many programs |
+| `SHELL` | User's configured login shell |
+| `PATH` | Colon-separated directories searched for commands |
+| `PWD` | Current working directory maintained by the shell |
+| `OLDPWD` | Previous working directory used by some shell commands |
+| `LANG`, `LC_*` | Locale, language, sorting, and character behavior |
+| `TERM` | Terminal capabilities and output type |
+| `TMPDIR` | Preferred location for temporary files for programs that honor it |
+| `EDITOR` and `VISUAL` | Preferred text editor for some tools |
+| `XDG_CONFIG_HOME` | User configuration directory for applications that follow XDG conventions |
+
+These variables are conventions, not authentication controls. They may be missing or different in an SSH command, cron job, `sudo` command, container, or `systemd` service. Applications should validate important paths and identities instead of trusting a user-controlled variable.
+
+## `PATH` and command lookup
+
+When you type a command without a slash, the shell searches directories in `PATH` from left to right:
+
+```bash
+printf '%s\n' "$PATH"
+command -v python3
+type -a python3
+```
+
+To add a personal bin directory while preserving the existing path:
+
+```bash
+export PATH="$HOME/bin:$PATH"
+```
+
+Avoid putting `.` or an empty component in `PATH`. Depending on the shell and path form, an empty component can mean the current directory, allowing an attacker or accidental file to run when a command is typed. Prefer absolute paths in privileged scripts and service definitions.
+
+`PATH` order can select a different executable than expected. Use `command -v`, inspect the resolved file, and avoid relying on an interactive alias or function when writing automation.
+
+## Where variables come from
+
+An environment can be assembled from several sources:
+
+```text
+Login or service manager
+          |
+System configuration and startup files
+          |
+Parent process environment
+          |
+Child shell or application
+```
+
+For Bash, the startup files depend on how the shell is invoked:
+
+| Shell context | Common files |
+| --- | --- |
+| Interactive login shell | `/etc/profile`, then the first readable `~/.bash_profile`, `~/.bash_login`, or `~/.profile` |
+| Interactive non-login shell | `~/.bashrc` |
+| Non-interactive Bash script | May read the file named by `BASH_ENV` |
+
+Distributions and login managers can add other behavior. A graphical terminal, SSH login, scheduled job, and service may start through different paths. Do not assume that a variable in `~/.bashrc` will exist in a service or cron job.
+
+After editing a shell startup file, start a new session or explicitly source the file:
+
+```bash
+. ~/.bashrc
+```
+
+Sourcing executes the file in the current shell. Only source files you trust; a startup file can run arbitrary commands.
+
+## `/etc/environment` and login configuration
+
+On systems using PAM, `/etc/environment` may provide simple `NAME=value` assignments during login. It is not generally a Bash script: command substitution, shell expansion, and commands do not belong there.
+
+System-wide profiles, PAM modules, display managers, SSH configuration, and distribution defaults can all affect a login environment. Changes to system-wide files should be reviewed because they can affect every user and automated login.
+
+Keep user startup files and system environment files readable only as broadly as their contents require. Do not put secrets in a world-readable profile or commit them to a home-directory configuration file.
+
+## Variables in `systemd` services
+
+Services started by `systemd` do not normally read an administrator's interactive shell files. Configure service-specific values in a unit or a drop-in:
+
+```ini
+[Service]
+Environment="APP_MODE=production"
+EnvironmentFile=/etc/example/example.env
+```
+
+An environment file might contain:
+
+```text
+APP_MODE=production
+APP_PORT=8080
+```
+
+Use `systemctl edit example.service` to create a drop-in instead of editing a package-owned unit file. After changing unit configuration:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart example.service
+systemctl show example.service --property=Environment
+```
+
+`daemon-reload` makes systemd reread unit files; it does not restart the service. A restart is needed for the service process to receive the new environment. Use the service's own configuration documentation because some applications read a file themselves rather than environment variables.
+
+Environment files can contain sensitive values. Restrict their ownership and mode, avoid displaying them in tickets or logs, and prefer systemd credentials or a secrets manager for high-value secrets. A service's environment can be inspected by privileged users and may be exposed through process diagnostics.
+
+## Environment variables are not a secret store
+
+Environment variables are convenient for non-secret configuration, but they are not automatically confidential:
+
+- Child processes inherit them.
+- Privileged diagnostics can inspect `/proc/PID/environ`.
+- Crash reports, debug output, and monitoring tools may capture them.
+- Container images or deployment manifests may preserve them.
+- Shell tracing and careless logging can expose them.
+
+Use a secret manager, protected file, systemd credential, or another mechanism designed for secrets. If an environment variable must carry a secret, restrict access, avoid logging it, rotate it, and document the exposure model.
+
+Never put secrets in command arguments either. Arguments can be visible in process listings, and the command may be recorded by audit or job systems.
+
+## Locale and reproducible scripts
+
+Locale variables can change sorting, character classification, messages, and date or number formatting. A script that parses command output should prefer stable interfaces, but setting a deliberate locale can also help:
+
+```bash
+LC_ALL=C sort input.txt
+```
+
+Do not set `LC_ALL` globally without understanding the effect on users and applications. `LANG` provides a default, while more specific `LC_*` variables can override individual categories; `LC_ALL` has the highest precedence when set.
+
+## Environment and security-sensitive variables
+
+Some variables influence program loading or shell behavior. Examples include `LD_PRELOAD`, `LD_LIBRARY_PATH`, `BASH_ENV`, and `PATH`. An attacker who controls them may alter which code runs or how it runs.
+
+Do not trust an inherited environment across a privilege boundary. `sudo`, set-user-ID programs, service managers, and container runtimes may remove, reset, or selectively preserve variables. Privileged programs should use a controlled environment and absolute paths where appropriate.
+
+## Containers, SSH, and automation
+
+Different execution contexts receive different environments:
+
+- **SSH:** The server creates a login environment; client forwarding requires explicit configuration and is often restricted.
+- **Cron:** Jobs usually receive a small environment and may not read interactive shell startup files.
+- **`sudo`:** Policy commonly resets or filters variables to prevent privilege escalation.
+- **Containers:** Runtime settings, image metadata, entrypoints, and orchestrator configuration determine the environment.
+- **CI/CD:** Pipeline variables may be exposed in logs or artifacts if masking is incomplete.
+- **`systemd`:** Unit configuration and the service manager provide the environment, not your current terminal.
+
+Make required variables explicit in scripts and deployment definitions. Fail with a clear message when a required value is missing rather than silently using a dangerous default.
+
+## Debugging an environment mismatch
+
+Compare environments at the point where the program is launched:
+
+```bash
+env | sort
+env -i HOME="$HOME" PATH=/usr/bin:/bin bash --noprofile --norc -c 'env | sort'
+```
+
+For a running process, privileged access may be required:
+
+```bash
+tr '\0' '\n' < /proc/PID/environ
+```
+
+For a `systemd` service:
+
+```bash
+systemctl show example.service --property=Environment
+systemctl cat example.service
+```
+
+Check the following in order:
+
+1. Is the variable set or exported in the launching process?
+2. Is the correct startup file or service unit being used?
+3. Was the service restarted after its configuration changed?
+4. Did `sudo`, SSH, cron, a container runtime, or a supervisor filter it?
+5. Is the variable name, quoting, path, type, or default correct?
+6. Is the application reading a different configuration source with higher precedence?
+
+## Safe practice lab
+
+These commands demonstrate shell scope without changing system configuration:
+
+```bash
+LAB_VALUE=parent
+printf 'shell: %s\n' "$LAB_VALUE"
+bash -c 'printf "unexported child: <%s>\n" "${LAB_VALUE-unset}"'
+export LAB_VALUE
+bash -c 'printf "exported child: <%s>\n" "$LAB_VALUE"'
+LAB_VALUE=temporary bash -c 'printf "one command: <%s>\n" "$LAB_VALUE"'
+printf 'parent after one command: %s\n' "$LAB_VALUE"
+unset LAB_VALUE
+```
+
+The temporary assignment affects only the command it prefixes. The exported value remains in the parent shell until it is changed or unset.
+
+## Practical design checklist
+
+1. Which process creates the variable, and which child process needs it?
+2. Is the value a shell variable or an exported environment variable?
+3. Which startup file, service unit, scheduler, or deployment system provides it?
+4. Are values quoted, validated, and distinguished correctly when empty or unset?
+5. Could `PATH`, `LD_*`, `BASH_ENV`, or another variable cross a privilege boundary?
+6. Is the value sensitive, and could it appear in `/proc`, logs, images, or crash reports?
+7. Does the program have a safe failure behavior when the variable is absent?
+
+## Summary
+
+- An environment variable is a `NAME=value` string attached to a process.
+- Child processes inherit a copy of exported variables; changes are not shared backward or live-updated.
+- `export`, `unset`, `env`, `printenv`, and shell parameter expansion are core tools for managing variables.
+- Bash startup files differ for login, interactive, non-interactive, SSH, and scheduled contexts.
+- `systemd` services receive their own configured environment and normally do not read your shell profile.
+- `PATH` order, quoting, empty values, locale, and variable precedence can change program behavior.
+- Environment variables are convenient configuration, not automatically secure secret storage.
+- Debug the environment at the process-launch boundary instead of assuming that every execution context is the same.
+
+### Check your understanding
+
+1. What is the difference between a shell variable and an exported environment variable?
+2. Why does changing a variable in a parent shell not update an already running child process?
+3. Why should `PATH` usually be expanded as `"$HOME/bin:$PATH"` instead of replaced?
+4. Why might a variable in `~/.bashrc` be missing from a `systemd` service?
+5. What is the difference between an unset variable and an empty variable?
+6. Why are environment variables not ideal for high-value secrets?
+7. Which command can show the environment of a running process, subject to permissions?
+
+## Further reading
+
+- [`environ(7)` Linux manual page](https://man7.org/linux/man-pages/man7/environ.7.html)
+- [Bash manual: Environment](https://www.gnu.org/software/bash/manual/html_node/Environment.html)
+- [`bash(1)` Linux manual page](https://man7.org/linux/man-pages/man1/bash.1.html)
+- [`systemd.exec(5)` environment configuration](https://man.archlinux.org/man/systemd.exec.5.en)

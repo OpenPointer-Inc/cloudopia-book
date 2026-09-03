@@ -1,0 +1,366 @@
+---
+sidebar_position: 11
+description: "Understand how Linux manages disks, partitions, filesystems, and storage devices."
+---
+
+# 🐧 Disk management
+
+Linux disk management connects block devices to files and directories. A typical path is:
+
+```text
+Cloud volume or physical disk
+              |
+        Block device: /dev/...
+              |
+       Partition table and partition
+              |
+      Optional LVM or encryption layer
+              |
+           Filesystem
+              |
+          Mount point
+              |
+        Files and directories
+```
+
+Storage changes can be destructive. Formatting a partition, deleting a volume, shrinking the wrong layer, or editing `/etc/fstab` incorrectly can cause data loss or prevent a server from booting. Inspect first, back up important data, and confirm device names before changing anything.
+
+By the end of this lesson, you should be able to:
+
+- Identify disks, partitions, filesystems, and mount points
+- Inspect capacity, inodes, performance, and device health
+- Mount storage temporarily and persistently
+- Explain LVM, encryption, snapshots, and cloud-volume expansion
+- Troubleshoot full, missing, read-only, slow, or incorrectly mounted storage
+
+## Disks, partitions, and filesystems
+
+These terms describe different layers:
+
+| Term | Meaning |
+| --- | --- |
+| **Disk or volume** | A block-storage device such as `/dev/sda` or `/dev/nvme0n1` |
+| **Partition** | A defined range of a disk, such as `/dev/sda1` |
+| **Partition table** | Metadata describing partitions, commonly GPT or legacy MBR |
+| **Filesystem** | The structure that stores files, directories, metadata, and free-space information |
+| **Mount point** | A directory where Linux attaches a filesystem to the single directory tree |
+| **Logical volume** | A virtual block device managed by LVM rather than directly by a partition |
+
+A disk can contain a filesystem directly, but it can also contain partitions, an LVM physical volume, encrypted data, RAID metadata, or another storage layer. Do not run filesystem tools against a layer you have not identified.
+
+## Inspect storage safely
+
+Start with read-only commands:
+
+```bash
+lsblk -o NAME,SIZE,TYPE,FSTYPE,FSVER,LABEL,UUID,MOUNTPOINTS
+blkid
+findmnt
+df -hT
+df -ih
+```
+
+These answer different questions:
+
+- `lsblk`: What block devices, partitions, and mount relationships exist?
+- `blkid`: What filesystem signatures, labels, and UUIDs are detected?
+- `findmnt`: Which filesystems are mounted and with which options?
+- `df -hT`: How much filesystem space is used and what type is it?
+- `df -ih`: How many filesystem inodes remain?
+
+To find which directories consume space:
+
+```bash
+du -xhd1 "$HOME" 2>/dev/null
+```
+
+`du` measures files and directories; `df` measures filesystem allocation. They can disagree when deleted files are still open, reserved filesystem space is involved, or multiple mount points are crossed.
+
+## Device names and stable identifiers
+
+Linux may name disks `/dev/sda`, `/dev/vda`, or `/dev/nvme0n1`, depending on the hardware or hypervisor. Device names can change when disks are added, removed, or discovered in a different order.
+
+For persistent mounts, prefer a filesystem UUID or a deliberately managed label:
+
+```bash
+ls -l /dev/disk/by-uuid/
+blkid /dev/sdb1
+```
+
+Do not identify a disk by size alone. Two devices can have the same size, and a cloud device name may not match the provider's volume name. Confirm the device using `lsblk`, provider metadata, filesystem UUID, and current mount points.
+
+## Partition tables
+
+**GPT (GUID Partition Table)** is the modern partitioning format and supports large disks and many partitions. **MBR/DOS partition tables** are older and have smaller partition-count and disk-size constraints.
+
+Inspect without opening an editing session:
+
+```bash
+sudo fdisk -l
+sudo parted -l
+```
+
+`fdisk` and `parted` can create, resize, and delete partitions. Their interactive commands change the partition table only after you explicitly write the changes, but treat every write operation as dangerous. Back up partition information and data before repartitioning.
+
+Partitioning does not create a usable filesystem. The usual sequence for a new, empty device is:
+
+```text
+Identify device -> Create partition -> Create filesystem -> Mount filesystem
+```
+
+The device must be empty or its existing data must be intentionally discarded. Never assume that an unmounted device is unused.
+
+## Creating a filesystem
+
+`mkfs` creates a filesystem and normally destroys the data and filesystem metadata already on the target:
+
+```bash
+sudo mkfs.ext4 /dev/DEVICE1
+# Or, when XFS is the deliberate choice:
+sudo mkfs.xfs /dev/DEVICE1
+```
+
+Replace the placeholder only after confirming the device. Do not run these examples against a production disk, the root device, or an unknown partition. Choose the filesystem based on application requirements, distribution support, file sizes, performance, quotas, recovery tools, and resizing needs.
+
+Two common Linux filesystems are:
+
+| Filesystem | Useful characteristics |
+| --- | --- |
+| **ext4** | Widely supported; supports online growth and offline shrinking when the required tools and conditions are met |
+| **XFS** | Scalable journaling filesystem; supports online growth but does not support shrinking |
+
+Filesystem support and defaults differ between distributions. A filesystem's journal improves recovery from some crashes; it is not a backup and cannot undo every application-level corruption or deletion.
+
+## Mounting a filesystem
+
+Mounting attaches a filesystem to a directory:
+
+```bash
+sudo mkdir -p /srv/data
+sudo mount /dev/DEVICE1 /srv/data
+findmnt /srv/data
+df -hT /srv/data
+```
+
+Unmount it when it is no longer needed:
+
+```bash
+sudo umount /srv/data
+```
+
+The mount point should normally be empty. Existing files underneath it become hidden while the filesystem is mounted and reappear after unmounting. This can confuse administrators and can cause data to be written to the root filesystem before the intended volume is mounted.
+
+If `umount` reports that the target is busy, identify processes using the mount before stopping anything:
+
+```bash
+sudo fuser -vm /srv/data
+sudo lsof +D /srv/data
+```
+
+`lsof +D` can be expensive on a large tree. Use it carefully on production systems.
+
+## Persistent mounts with `/etc/fstab`
+
+The `/etc/fstab` file describes filesystems that should be mounted automatically. A simplified entry is:
+
+```text
+UUID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx /srv/data ext4 defaults,nofail 0 2
+```
+
+The fields are:
+
+1. Device identifier, preferably a UUID or managed label
+2. Mount point
+3. Filesystem type
+4. Mount options
+5. Legacy dump field
+6. Filesystem-check order for tools that use it
+
+After editing, validate the file before rebooting:
+
+```bash
+findmnt --verify --verbose
+sudo mount -a
+findmnt /srv/data
+```
+
+`mount -a` attempts to mount entries from `/etc/fstab`; it can change the current system, so inspect the file and command output first. `nofail` can prevent an unavailable data volume from blocking boot, but the application may still fail if it depends on that volume. Options such as `ro`, `nodev`, `nosuid`, and `noexec` can improve isolation but may break applications; test them with the workload.
+
+## LVM: flexible local storage
+
+The **Logical Volume Manager (LVM)** adds a flexible layer:
+
+```text
+Physical volumes (PVs) -> Volume group (VG) -> Logical volumes (LVs) -> Filesystems
+```
+
+Inspect LVM without changing it:
+
+```bash
+pvs
+vgs
+lvs
+lsblk
+```
+
+LVM can allocate storage from a pool, extend logical volumes, and create snapshots. An LVM snapshot is a point-in-time storage feature, not automatically an independent backup. It consumes space and has performance and consistency considerations.
+
+When expanding storage, the usual order is:
+
+```text
+Provider volume -> Partition -> LVM physical volume -> Logical volume -> Filesystem
+```
+
+For example, after a device has been expanded and the partition has been safely grown:
+
+```bash
+sudo pvresize /dev/DEVICE1
+sudo lvextend -L +20G /dev/vgname/lvname
+sudo resize2fs /dev/vgname/lvname       # ext4 example
+sudo xfs_growfs /srv/data                # XFS example, use the mount point
+```
+
+Do not run both filesystem-growth commands. Use the command for the actual filesystem, verify each layer, and consult distribution documentation. Some LVM versions support `lvextend -r` to resize the filesystem automatically, but explicit control can be safer during learning and troubleshooting.
+
+## Growing a cloud volume
+
+Increasing a cloud volume's size does not always expand the partition, logical volume, or filesystem automatically. A general workflow is:
+
+1. Take or verify a backup appropriate to the data and recovery objective.
+2. Increase the volume through the cloud provider.
+3. Confirm that the guest sees the new device size.
+4. Grow the partition if the filesystem is inside a partition.
+5. Run `pvresize` if LVM uses the expanded partition or device.
+6. Extend the logical volume if an LV is present.
+7. Grow the filesystem with its filesystem-specific tool.
+8. Verify with `lsblk`, `findmnt`, and `df`.
+
+For an ext4 filesystem directly inside the first partition, a common tool sequence may look like:
+
+```bash
+lsblk
+sudo growpart /dev/nvme0n1 1
+sudo resize2fs /dev/nvme0n1p1
+df -hT /mount/point
+```
+
+For XFS, grow the filesystem after its block device or LV has been expanded:
+
+```bash
+sudo xfs_growfs /mount/point
+```
+
+The device names, partition numbers, tools, and whether an online operation is supported depend on the layout. Never copy these commands without mapping the actual storage stack first.
+
+## Shrinking storage
+
+Shrinking is more dangerous than growing. The filesystem must be reduced before the partition or logical volume is reduced. If the partition is reduced first, data at the end of the filesystem can be destroyed.
+
+XFS cannot be shrunk in place. A common safe approach is to create a new smaller filesystem, copy the data, verify it, and switch the mount configuration. For filesystems that support shrinking, use the documented offline procedure and a tested backup. When possible, add a new volume rather than shrinking an important live filesystem.
+
+## Capacity is not performance
+
+Free gigabytes do not describe storage performance. A workload can have free space but still suffer from:
+
+- High latency
+- Insufficient IOPS
+- Low throughput
+- Deep I/O queues
+- Burst-credit exhaustion on some volume types
+- CPU or network bottlenecks around the storage path
+
+Useful tools, when installed, include:
+
+```bash
+iostat -xz 1
+pidstat -d 1
+vmstat 1
+```
+
+Benchmark tools such as `fio` can generate destructive or disruptive load. Use them only on disposable test volumes and with a reviewed test plan.
+
+## Encryption, RAID, snapshots, and backups
+
+Linux storage may include encryption such as LUKS, software RAID, or a provider's encryption-at-rest feature. These controls solve different problems:
+
+- **Encryption:** Protects confidentiality; losing the key can make data unrecoverable.
+- **RAID:** Can improve availability or performance for certain disk failures; it is not a backup.
+- **Snapshot:** Captures a point-in-time state; it may share the same account, region, or failure domain as production.
+- **Backup:** Provides a retained recovery copy with an intentional access and restore process.
+
+Application consistency matters. A database snapshot taken during writes may require database-native backup procedures or a coordinated freeze. Test a restore rather than assuming that a successful snapshot API call proves recoverability.
+
+## Common storage problems
+
+| Symptom | First checks |
+| --- | --- |
+| Device is missing | Cloud attachment, instance mapping, `lsblk`, kernel and udev logs |
+| Mount says wrong filesystem | `lsblk`, `blkid`, filesystem type, encryption or RAID layer, damaged signature |
+| Filesystem is full | `df -h`, `du`, deleted-open files, logs, package caches, retention policies |
+| Inodes are full | `df -i`, directories containing many small files |
+| Writes fail with read-only error | Mount options, filesystem errors, device health, `dmesg`, `journalctl -k` |
+| Unmount says busy | `fuser`, `lsof`, current directories, service processes |
+| Disk is slow | `iostat`, I/O latency, queue depth, volume limits, memory pressure, application workload |
+| Volume grew but free space did not | Partition, LVM, and filesystem growth stages were not all completed |
+| Boot fails after storage change | `/etc/fstab`, UUID, filesystem type, mount point, `nofail`, initramfs |
+
+Inspect kernel and storage messages with:
+
+```bash
+journalctl -k --since "15 minutes ago"
+```
+
+Do not run filesystem repair tools on a mounted filesystem unless the tool and filesystem explicitly support that operation. Repair procedures can modify metadata and should start with a backup or image when possible.
+
+## Safe read-only practice
+
+Use a disposable VM or server for mutating storage labs. On any Linux machine, start with:
+
+```bash
+lsblk -o NAME,SIZE,TYPE,FSTYPE,UUID,MOUNTPOINTS
+findmnt
+df -hT
+df -ih
+du -xhd1 /var 2>/dev/null
+```
+
+Predict which filesystem contains `/var`, whether it is approaching a capacity or inode limit, and which devices are mounted. Do not use `mkfs`, `fdisk` write operations, `parted` changes, `pvcreate`, or `lvremove` on a real disk until you can explain the complete recovery path.
+
+## Practical design checklist
+
+1. Which physical or cloud volume backs each important filesystem?
+2. What are the partition, encryption, RAID, LVM, and filesystem layers?
+3. Are persistent mounts identified by verified UUIDs or managed labels?
+4. What happens if a volume is unavailable during boot or after a host replacement?
+5. Are capacity, inodes, IOPS, throughput, latency, and burst limits monitored?
+6. Are snapshots and backups independent, retained, protected, and restorable?
+7. Has storage expansion or recovery been tested without risking production data?
+
+## Summary
+
+- Linux storage is a stack of devices, partitions, optional layers, filesystems, and mount points.
+- `lsblk`, `blkid`, `findmnt`, `df`, and `du` answer different inspection questions.
+- Formatting and partition changes are destructive; verify devices and backups before modifying them.
+- Use UUIDs or managed labels in `/etc/fstab`, validate changes, and understand `nofail` behavior.
+- LVM provides flexible allocation, but its snapshots are not automatically backups.
+- Growing storage usually requires expanding every layer in order; shrinking requires more care and XFS cannot shrink in place.
+- Capacity, IOPS, throughput, and latency are separate storage properties.
+- Encryption, RAID, snapshots, and backups provide different protections and must be tested in combination.
+
+### Check your understanding
+
+1. What is the difference between a disk, partition, filesystem, and mount point?
+2. Why should persistent mounts normally use UUIDs rather than only `/dev/sdX` names?
+3. Why does increasing a cloud volume not always increase available filesystem space?
+4. In what order should storage layers be expanded?
+5. Why is RAID or an LVM snapshot not automatically a backup?
+6. What is the difference between `df` and `du`?
+7. Why is shrinking a filesystem more dangerous than growing it?
+8. What should you check when a filesystem has free space but writes still fail?
+
+## Further reading
+
+- [Red Hat: Managing storage devices](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html-single/managing_storage_devices/index)
+- [Red Hat: Managing file systems](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/managing_file_systems/index)
+- [`lsblk(8)` Linux manual page](https://man7.org/linux/man-pages/man8/lsblk.8.html)
+- [`mount(8)` Linux manual page](https://man7.org/linux/man-pages/man8/mount.8.html)

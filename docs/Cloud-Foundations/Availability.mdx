@@ -1,0 +1,160 @@
+---
+sidebar_position: 10
+description: "Learn how to measure availability and design cloud systems that continue operating through failures."
+---
+
+# Availability
+
+**Availability** is the proportion of time a service is usable when users need it. A service is not truly available just because its servers are powered on; requests must succeed within an acceptable time and return a useful result.
+
+Availability is one part of reliability. Reliability also includes correctness, durability, recoverability, and the ability to operate safely over time.
+
+By the end of this lesson, you should be able to:
+
+- Measure availability and interpret "nines"
+- Distinguish an SLI, SLO, and SLA
+- Design redundancy across failure domains
+- Connect availability to RTO, RPO, monitoring, and testing
+
+## Measuring availability
+
+For a time-based service, a basic calculation is:
+
+```text
+Availability = (agreed service time - unavailable time)
+               / agreed service time
+```
+
+For a request-based service, a useful measure might be successful requests divided by valid requests. The team must define what counts as success, how much latency is acceptable, which maintenance periods are excluded, and how dependencies are treated.
+
+Availability targets are often described as "nines." The following values show approximate downtime in a 365-day year:
+
+| Target | Approximate annual downtime |
+| --- | --- |
+| **99%** | 3 days, 15 hours, 36 minutes |
+| **99.9%** | 8 hours, 45 minutes, 36 seconds |
+| **99.99%** | 52 minutes, 34 seconds |
+| **99.999%** | 5 minutes, 15 seconds |
+
+These numbers are a planning aid, not a guarantee. A five-minute outage may be acceptable for one workload and unacceptable for another. Higher targets usually require more redundancy, automation, testing, and operational investment.
+
+## SLI, SLO, and SLA
+
+| Term | Meaning | Example |
+| --- | --- | --- |
+| **Service level indicator (SLI)** | A measurement of actual behavior | Percentage of checkout requests completed in under two seconds |
+| **Service level objective (SLO)** | The reliability target for a service | 99.95% of checkout requests succeed each month |
+| **Service level agreement (SLA)** | A contractual commitment, often with remedies | A provider offers service credits if a defined target is missed |
+
+An **error budget** is the amount of failure an SLO permits. A 99.9% monthly SLO leaves 0.1% as its error budget. Teams can use that budget to decide whether to prioritize new features or reliability work. An error budget is not permission to cause outages; it is a way to make risk and engineering trade-offs explicit.
+
+An SLA is not the same as your application's availability. A provider may meet its SLA while your application is unavailable because of an incorrect deployment, an expired certificate, or a failed dependency. Measure the user journey you own.
+
+## Availability is end to end
+
+Users experience the whole request path, not an individual cloud service:
+
+```text
+User -> DNS -> Load balancer -> Application -> Database
+                    |                 |
+                Network          External API
+```
+
+If critical components are independent and all are required, their combined availability is approximately the product of their availabilities. Two serial dependencies with 99.9% availability produce about 99.8001% availability before other failure sources are considered.
+
+This is why teams should create a dependency map and ask:
+
+- Which component is a single point of failure?
+- Which dependencies are outside the team's control?
+- What happens when a dependency is slow rather than completely down?
+- Can the application provide a reduced but useful experience?
+
+## Use failure domains
+
+Redundancy helps only when redundant components do not fail together.
+
+| Design | Protects against | Limitation |
+| --- | --- | --- |
+| Multiple processes on one host | A process crash | The host remains a single point of failure |
+| Multiple hosts in one zone | A host failure | A zone-level power or network event can affect all hosts |
+| Multiple availability zones | Many local facility failures | A regional outage or shared application error can still affect all zones |
+| Multiple regions | Some regional or connectivity failures | Adds latency, cost, data-replication, and operational complexity |
+
+A common web pattern is:
+
+```text
+                 +-> App instances in zone A -+
+Users -> Load balancer                          -> Data service
+                 +-> App instances in zone B -+
+```
+
+The data service needs its own availability design. Adding application servers does not help if one database, identity service, DNS record, or network link remains a single point of failure.
+
+## Active-passive and active-active
+
+- **Active-passive:** One environment serves traffic while another is ready to take over. It can be simpler and cheaper, but failover may take longer and the standby can be incorrectly configured or untested.
+- **Active-active:** Multiple environments serve traffic at the same time. It can reduce failover time and use capacity efficiently, but requires careful data consistency, traffic routing, deployment, and conflict handling.
+
+Neither pattern is automatically superior. Choose based on the SLO, recovery objectives, workload behavior, and operating capability of the team.
+
+## Application techniques
+
+Infrastructure redundancy is only one layer. Applications can remain useful during partial failure by using:
+
+- **Timeouts:** Stop waiting forever for a slow dependency.
+- **Retries with backoff:** Retry temporary failures without creating a traffic storm. Retry only operations that are safe or idempotent.
+- **Circuit breakers:** Temporarily stop calling a failing dependency.
+- **Queues:** Absorb bursts and allow work to continue after a temporary outage.
+- **Graceful degradation:** Serve cached, read-only, or reduced functionality when a non-critical feature fails.
+- **Health checks:** Route traffic only to instances that can actually serve requests.
+
+Health checks should test meaningful behavior without depending on a fragile external operation. Poor checks can send traffic to a broken instance or remove every instance during a temporary dependency problem.
+
+## Availability and recovery objectives
+
+Availability describes normal service operation. Recovery objectives describe what happens after a serious outage:
+
+- **Recovery time objective (RTO):** The maximum acceptable time to restore service.
+- **Recovery point objective (RPO):** The maximum acceptable amount of data loss, expressed as time.
+
+For example, an RTO of one hour means the service should be restored within one hour. An RPO of fifteen minutes means recovery may lose no more than the most recent fifteen minutes of changes. Replication and backups must be designed to meet these objectives; a highly available system can still have a poor recovery plan.
+
+## Observe and test it
+
+Useful availability signals include:
+
+- Successful request rate and error rate
+- Latency at important percentiles, such as p95 and p99
+- Saturation of CPU, memory, connections, queues, and quotas
+- Health of dependencies and replication links
+- Synthetic user journeys from multiple locations
+- Time to detect, fail over, recover, and communicate an incident
+
+Do not treat redundancy as proven until it has been tested. Run controlled failover exercises, zone-loss simulations, dependency failures, deployment rollbacks, and restore tests. Record what happened and update the design.
+
+## Practical design checklist
+
+1. Define what "available" means from the user's perspective.
+2. Set an SLO based on business impact, not a fashionable number of nines.
+3. Map dependencies and remove or isolate single points of failure.
+4. Spread critical components across appropriate failure domains.
+5. Design timeouts, retries, degradation, failover, and rollback behavior.
+6. Set RTO and RPO separately from the availability target.
+7. Monitor the user journey and regularly test the recovery path.
+
+## Summary
+
+- Availability means that a service is usable, not merely running.
+- SLI measures behavior, SLO sets a target, and SLA defines a contractual commitment.
+- More nines require disproportionate investment and careful failure-domain design.
+- End-to-end availability is limited by dependencies and single points of failure.
+- Active-passive and active-active designs trade simplicity, cost, failover speed, and consistency.
+- RTO, RPO, monitoring, and tested failover turn an availability target into an operational capability.
+
+### Check your understanding
+
+1. Why is a running server not sufficient to prove that an application is available?
+2. What is the difference between an SLI, SLO, and SLA?
+3. Why do two instances in one availability zone provide less protection than instances in two zones?
+4. What do RTO and RPO measure?
+5. Why should retries be limited to operations that are safe or idempotent?

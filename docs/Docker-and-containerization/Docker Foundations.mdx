@@ -1077,25 +1077,25 @@ Dockerfile
 
 If Docker is installed, don't just read. Do this yourself.
 
-### Step 1
+#### Step 1
 
 ```bash
 docker --version
 ```
 
-### Step 2
+#### Step 2
 
 ```bash
 docker pull nginx
 ```
 
-### Step 3
+#### Step 3
 
 ```bash
 docker images
 ```
 
-### Step 4
+#### Step 4
 
 ```bash
 docker run -d --name my-nginx -p 8080:80 nginx
@@ -1113,7 +1113,7 @@ Now:
 docker ps
 ```
 
-### Step 5
+#### Step 5
 
 Open:
 
@@ -1121,7 +1121,7 @@ Open:
 http://localhost:8080
 ```
 
-### Step 6
+#### Step 6
 
 Check its logs:
 
@@ -1129,7 +1129,7 @@ Check its logs:
 docker logs my-nginx
 ```
 
-### Step 7
+#### Step 7
 
 Inspect it:
 
@@ -1137,7 +1137,7 @@ Inspect it:
 docker inspect my-nginx
 ```
 
-### Step 8
+#### Step 8
 
 Enter the container:
 
@@ -1163,7 +1163,7 @@ Then:
 exit
 ```
 
-### Step 9
+#### Step 9
 
 Stop it:
 
@@ -1171,7 +1171,7 @@ Stop it:
 docker stop my-nginx
 ```
 
-### Step 10
+#### Step 10
 
 Check all containers:
 
@@ -1179,7 +1179,7 @@ Check all containers:
 docker ps -a
 ```
 
-### Step 11
+#### Step 11
 
 Remove it:
 
@@ -1193,41 +1193,25 @@ docker rm my-nginx
 
 After completing the lab, see if you can answer these **without looking back**:
 
-### 1.
+#### 1. What is Docker?
 
-What is Docker?
+#### 2. What is a container?
 
-### 2.
+#### 3. What is an image?
 
-What is a container?
+#### 4. What's the difference between an image and a container?
 
-### 3.
+#### 5. What creates an image?
 
-What is an image?
+#### 6. Where can Docker images be stored/shared?
 
-### 4.
-
-What's the difference between an image and a container?
-
-### 5.
-
-What creates an image?
-
-### 6.
-
-Where can Docker images be stored/shared?
-
-### 7.
-
-What does this mean?
+#### 7. What does this mean?
 
 ```bash
 -p 8080:80
 ```
 
-### 8.
-
-What's the difference between:
+#### 8. What's the difference between:
 
 ```bash
 docker ps
@@ -1239,17 +1223,13 @@ and:
 docker ps -a
 ```
 
-### 9.
-
-What does this do?
+#### 9. What does this do?
 
 ```bash
 docker logs my-nginx
 ```
 
-### 10.
-
-What does this do?
+#### 10. What does this do?
 
 ```bash
 docker exec -it my-nginx bash
@@ -1257,51 +1237,3 @@ docker exec -it my-nginx bash
 
 ---
 
-## 🗺️ Where We're Going Next
-
-This first lesson gives you the basic mental model.
-
-Next we'll go deeper into:
-
-```text
-Lesson 1
-What is Docker?                  ← YOU ARE HERE
-        ↓
-Lesson 2
-Images & Containers
-        ↓
-Lesson 3
-Dockerfiles
-        ↓
-Lesson 4
-Build your own image
-        ↓
-Lesson 5
-Docker networking
-        ↓
-Lesson 6
-Docker volumes & persistent data
-        ↓
-Lesson 7
-Environment variables & secrets
-        ↓
-Lesson 8
-Docker Compose
-        ↓
-Lesson 9
-Multi-container applications
-        ↓
-Lesson 10
-Docker security
-        ↓
-Lesson 11
-Docker in CI/CD
-        ↓
-Lesson 12
-Docker + AWS
-        ↓
-Lesson 13
-Docker + Kubernetes
-```
-
-**Don't jump to Kubernetes yet.** If you truly understand images, containers, networking, volumes, Dockerfiles, and Compose first, Kubernetes will make dramatically more sense later.

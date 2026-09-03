@@ -1,0 +1,985 @@
+---
+sidebar_position: 1
+description: "Understand how Linux is organized from hardware and bootloader to the kernel, user space, processes, services, and containers."
+---
+
+# 🐧 Linux Architecture
+
+Linux becomes much easier to operate when you understand what happens between a command and the hardware that performs the work. This lesson builds that map from the simplest idea to the parts that matter when you run cloud servers and containers.
+
+The goal is not to memorize every Linux component. The goal is to know **which layer is responsible** when something goes wrong.
+
+By the end of this lesson, you should be able to:
+
+- Explain the difference between the Linux kernel, a Linux distribution, a shell, and a terminal
+- Describe how a Linux system boots and why `systemd` often becomes process ID 1
+- Explain how applications use system calls to request work from the kernel
+- Distinguish a program, a process, a service, and a daemon
+- Describe the kernel's roles in CPU scheduling, memory, storage, networking, and security
+- Explain how virtual machines and containers use Linux architecture differently
+- Choose useful commands when investigating a cloud server
+
+This lesson introduces the architecture behind the filesystem. The next filesystem lesson explores directories and paths in detail.
+
+---
+
+## 1. Start Easy: Think in Layers
+
+Imagine a restaurant:
+
+- The **hardware** is the kitchen equipment: ovens, refrigerators, knives, and tables.
+- The **kernel** is the head chef and floor manager. It decides who can use which equipment and coordinates the work.
+- **System services** are the staff who keep the restaurant operating, such as the person accepting reservations or cleaning tables.
+- The **shell and applications** are the ordering interface. They let a person or another program ask for work.
+
+You do not normally tell a disk how to move its electrical signals. You ask Linux to open a file, and Linux coordinates the lower-level work.
+
+A simplified Linux system looks like this:
+
+```text
+People and remote clients
+            |
+            v
+Applications, shells, and language runtimes
+            |
+            v
+Libraries and system-call interface
+            |
+            v
+Linux kernel
+  - processes and CPU scheduling
+  - memory management
+  - filesystems and storage
+  - networking
+  - security and device drivers
+            |
+            v
+Hardware or virtual hardware
+```
+
+The most important boundary is between **user space** and **kernel space**:
+
+```text
+USER SPACE
+Applications | shells | libraries | services
+----------------------------------------------
+SYSTEM-CALL INTERFACE
+----------------------------------------------
+KERNEL SPACE
+Scheduler | memory | filesystems | network | drivers
+----------------------------------------------
+HARDWARE
+CPU | RAM | disks | network interfaces
+```
+
+Applications usually run in user space. The kernel runs with greater privilege and mediates access to shared resources. This separation prevents an ordinary application from directly controlling every device or reading every process's memory.
+
+## 2. What Does "Linux" Mean?
+
+Strictly speaking, **Linux is the kernel**. The kernel is the central program that manages hardware and provides common services to other programs.
+
+In everyday conversation, people often use "Linux" to mean a complete operating system such as Ubuntu, Debian, Fedora, Red Hat Enterprise Linux, or Alpine Linux. A complete system contains much more than the kernel:
+
+```text
+Linux distribution
+|
+├── Linux kernel
+├── System libraries and utilities
+├── Shells and common command-line tools
+├── Init and service manager
+├── Package manager and software repositories
+├── Default configuration
+└── Optional desktop or server applications
+```
+
+### Kernel, distribution, shell, and terminal
+
+These words are related, but they are not interchangeable:
+
+| Term | Meaning | Example |
+| --- | --- | --- |
+| **Kernel** | The privileged core that manages CPU, memory, devices, networking, and system calls | Linux 6.x |
+| **Distribution** | A complete packaged operating system built around the kernel | Ubuntu 24.04, Debian, Fedora |
+| **Shell** | A program that reads commands and starts other programs | Bash, Zsh, Dash |
+| **Terminal** | A text interface or terminal emulator connected to a shell | GNOME Terminal, Windows Terminal, an SSH session |
+| **Application** | A user-space program that performs a task | Nginx, Python, `ls`, PostgreSQL |
+
+When you open a terminal, you are not opening the kernel directly. You are starting a terminal interface, which runs a shell, which starts commands that request services from the kernel.
+
+### Why distributions differ
+
+The same Linux kernel can support many distributions. Distributions make different choices about:
+
+- How software is packaged and updated
+- Which libraries and utilities are installed by default
+- Which service manager starts at boot
+- Which security tools and policies are enabled
+- How configuration files are organized
+
+For example, Debian and Ubuntu commonly use `apt` with Debian packages, Fedora and RHEL commonly use `dnf` with RPM packages, and Alpine commonly uses `apk`. The architecture remains recognizable even when the commands and defaults differ.
+
+Check the kernel and distribution on a Linux machine:
+
+```bash
+uname -r
+cat /etc/os-release
+```
+
+`uname -r` reports the kernel release. `/etc/os-release` describes the distribution. The filesystem lesson will explain why operating-system information is stored under `/etc`.
+
+## 3. From Power-On to a Running System
+
+Before a shell can run, Linux has to start. The exact path varies between physical machines, virtual machines, and distributions, but the major stages are similar.
+
+```text
+1. Firmware starts
+       |
+2. Bootloader is found
+       |
+3. Kernel and initramfs are loaded
+       |
+4. Kernel discovers hardware and starts memory/process management
+       |
+5. Kernel starts the first user-space process: PID 1
+       |
+6. PID 1 starts services and login targets
+       |
+7. You receive a console, desktop, or SSH session
+```
+
+### Stage 1: Firmware
+
+When a physical computer powers on, firmware such as UEFI performs early hardware initialization and looks for something bootable. A cloud provider performs an analogous job when it starts a virtual machine and presents virtual hardware to the guest.
+
+Firmware is not Linux. It runs before the Linux kernel.
+
+### Stage 2: Bootloader
+
+A bootloader, commonly GRUB on many Linux systems, selects and loads a kernel. It may also let an administrator choose a kernel version or pass kernel parameters.
+
+Cloud images may use a different bootloader or a provider-specific boot path. The important idea is that something must place the kernel in memory and tell it how to begin.
+
+### Stage 3: Kernel and initramfs
+
+The kernel is loaded together with an **initramfs**, a small temporary filesystem used during early boot. The initramfs can provide drivers, discover storage, unlock encrypted volumes, assemble RAID, and locate the real root filesystem.
+
+The kernel command line contains boot options. You can inspect it on many Linux systems with:
+
+```bash
+cat /proc/cmdline
+```
+
+### Stage 4: PID 1 and user space
+
+After the kernel has initialized enough of the system, it starts the first user-space process. That process receives **process ID 1** and is commonly `systemd` on general-purpose distributions.
+
+PID 1 is important because it normally:
+
+- Starts and supervises system services
+- Reaps orphaned child processes
+- Coordinates shutdown and reboot
+- Handles the system's initial transition into a usable state
+
+Inspect it with:
+
+```bash
+ps -p 1 -o pid,ppid,comm,args
+```
+
+You may see `systemd`, `init`, or another process. Containers often use the application itself as PID 1, which is one reason process signal handling and child-process cleanup matter in containerized workloads.
+
+## 4. The Kernel: Linux's Privileged Core
+
+The kernel is continuously coordinating competing requests. Many programs may want CPU time, memory, files, network connections, or devices at the same time.
+
+| Kernel responsibility | What it does | Cloud example |
+| --- | --- | --- |
+| **Process scheduling** | Chooses which runnable task gets CPU time | Shares a VM's vCPUs among application processes |
+| **Memory management** | Gives processes virtual memory and protects their address spaces | Prevents one service from normally reading another service's memory |
+| **Device drivers** | Provides standard interfaces to hardware and virtual devices | Operates a virtual disk or a `virtio` network device |
+| **Filesystems and storage** | Translates file operations into block-device operations | Reads a log from an attached cloud disk |
+| **Networking** | Implements sockets, TCP/IP, routing, and firewall hooks | Sends an HTTP response through a virtual NIC |
+| **Security** | Enforces credentials, permissions, capabilities, and security policies | Prevents an unprivileged process from binding to protected resources |
+| **System calls** | Exposes controlled entry points for user-space programs | Lets an application open a file or create a socket |
+
+The kernel is not the same thing as a command-line utility. When you run `ls`, the `ls` program runs in user space and asks the kernel for directory information.
+
+### User space and kernel space
+
+The boundary provides both safety and a common programming model:
+
+- A process normally cannot execute privileged hardware operations directly.
+- A process has its own virtual address space rather than unrestricted access to all RAM.
+- A process requests kernel work through defined interfaces such as system calls.
+- A failed application usually affects its own process, while a kernel failure can affect the whole operating system.
+
+This is a protection boundary, not an absolute wall. Vulnerabilities in a kernel, driver, or privileged service can cross that boundary, which is why keeping systems patched and reducing privileges is important.
+
+## 5. System Calls: The Bridge to the Kernel
+
+A **system call** is a controlled request from a user-space process to the kernel. Common categories include:
+
+```text
+File access       openat(), read(), write(), close()
+Processes         clone(), execve(), wait4(), exit()
+Memory            mmap(), munmap(), mprotect()
+Networking        socket(), bind(), connect(), accept(), sendto()
+Information       statx(), clock_gettime(), getuid()
+```
+
+The exact system call used depends on the program, architecture, kernel version, and libraries. The general path looks like this:
+
+```text
+You type: ls
+    |
+    v
+Shell finds and starts the ls program
+    |
+    v
+ls uses a library and requests directory data
+    |
+    v
+Kernel checks permissions and asks the filesystem/device layers
+    |
+    v
+The result returns to ls, which writes text to the terminal
+```
+
+Most developers do not call system calls directly. A library such as `glibc` or `musl` provides a friendlier API, and languages such as Python, Java, and Go eventually use operating-system interfaces underneath their runtimes.
+
+You can see system calls with `strace` when it is installed. This is an optional diagnostic tool and may require installation on your distribution:
+
+```bash
+strace -c ls
+```
+
+The command summarizes the calls made while `ls` runs. It demonstrates that a short command can involve many kernel interactions.
+
+## 6. User Space: Where Most Programs Run
+
+User space contains the programs that make the machine useful:
+
+```text
+User space
+|
+├── Interactive shells: bash, zsh, sh
+├── System services: sshd, cron, web servers
+├── Libraries: glibc, musl, OpenSSL
+├── Language runtimes: Python, JVM, Node.js
+├── Command-line utilities: ls, grep, curl
+└── Your applications
+```
+
+### Programs and libraries
+
+A **program** is a file containing instructions and supporting data. A **process** is a running instance of a program. Several processes can be created from the same program, and one program can create child processes.
+
+Many executable programs are dynamically linked. They load shared libraries at startup rather than carrying a private copy of every library function. This saves space and allows security updates to be shared by many applications.
+
+On a typical Linux system, you can inspect a command without changing anything:
+
+```bash
+command -v ls
+file "$(command -v ls)"
+```
+
+The first command locates the executable selected by your `PATH`. The second describes its file format and whether it is dynamically linked. Output differs between distributions and architectures.
+
+### Shells are programs too
+
+A shell is a user-space process that:
+
+1. Reads input from a terminal or script
+2. Expands variables and patterns
+3. Connects pipes and redirects files
+4. Starts external programs
+5. Waits for them or lets them run in the background
+6. Reports exit statuses
+
+Some commands are **shell builtins**. `cd` is a classic example: the shell must change its own working directory, so an external `cd` process could not change the directory of the parent shell.
+
+Compare a builtin and an external command:
+
+```bash
+type cd
+type ls
+```
+
+### Terminals, pseudo-terminals, and SSH
+
+The terminal and shell are separate:
+
+```text
+Keyboard or SSH client
+          |
+          v
+Terminal emulator or pseudo-terminal (PTY)
+          |
+          v
+Shell process
+          |
+          v
+Commands and applications
+```
+
+An SSH session commonly allocates a pseudo-terminal for an interactive login. A remote command started without a TTY can behave differently: it may not have terminal-sized output, job control, or interactive input.
+
+Processes communicate with their standard file descriptors:
+
+| File descriptor | Conventional name | Purpose |
+| --- | --- | --- |
+| `0` | Standard input | Data read by a program |
+| `1` | Standard output | Normal program output |
+| `2` | Standard error | Diagnostic and error output |
+
+Pipes and redirection connect these streams. For example, `command 2>errors.log` sends standard error to a file while leaving standard output unchanged.
+
+## 7. Processes: Running Work
+
+Linux does not schedule files or applications directly. It schedules **processes** and threads.
+
+A process has more than a PID. It also has:
+
+- A virtual address space
+- One or more threads
+- Open file descriptors
+- Environment variables and a working directory
+- A user and group identity
+- Signal handlers
+- Scheduling and resource information
+
+### Program versus process
+
+Consider the `nginx` executable on disk:
+
+```text
+Program file: /usr/sbin/nginx
+       |
+       | start it twice
+       v
+Process A: PID 1200
+Process B: PID 1201
+```
+
+The file is static data. Each running process has its own state and resources.
+
+List processes on a Linux system:
+
+```bash
+ps -ef
+```
+
+Useful columns commonly include:
+
+- `UID`: the account that owns the process
+- `PID`: the process ID
+- `PPID`: the parent process ID
+- `TTY`: the controlling terminal, if any
+- `STAT`: a compact process state
+- `CMD`: the command and arguments
+
+### Parent and child processes
+
+Shells commonly create a child process and then replace the child's program image with `execve`. Conceptually:
+
+```text
+Shell
+  |
+  | fork/clone
+  v
+Child process
+  |
+  | exec
+  v
+ls, curl, python, or another program
+```
+
+The parent may wait for the child and collect its exit status. A completed child whose status has not yet been collected is a **zombie**. Zombies do not continue using CPU, but a large number can consume process-table entries.
+
+### Process states
+
+Common process states include:
+
+| State | Meaning |
+| --- | --- |
+| `R` | Runnable or currently running |
+| `S` | Interruptible sleep, often waiting for an event |
+| `D` | Uninterruptible sleep, commonly waiting on I/O |
+| `T` | Stopped by a signal or debugger |
+| `Z` | Zombie: finished but not yet reaped |
+
+A process in `D` state may indicate slow storage or another kernel-level wait. It is not necessarily "using too much CPU" even if the application appears stuck.
+
+### Signals and graceful shutdown
+
+Signals are asynchronous notifications sent to processes. Important examples are:
+
+| Signal | Common meaning |
+| --- | --- |
+| `SIGINT` | Interrupt from an interactive terminal, commonly `Ctrl+C` |
+| `SIGTERM` | Request a process to shut down gracefully |
+| `SIGHUP` | Hangup; many daemons use it to reload configuration |
+| `SIGKILL` | Immediate termination that the process cannot handle or ignore |
+
+Prefer `SIGTERM` first so an application can close files, finish cleanup, or stop accepting new requests. `SIGKILL` is a last resort because the process cannot clean up.
+
+## 8. Services, Daemons, and PID 1
+
+A **daemon** is a background process that provides a continuing function. A **service** is the function and its operational definition; it may consist of one process or several processes.
+
+Examples include:
+
+- An SSH daemon accepting remote logins
+- A web server accepting HTTP requests
+- A time synchronization service
+- A logging service
+
+### Service managers
+
+PID 1 commonly hands service management to an init or service manager. `systemd` is common on Ubuntu, Fedora, RHEL, and many other distributions, but it is not part of the Linux kernel and it is not used everywhere. Other systems may use OpenRC, runit, s6, or traditional init scripts.
+
+On a `systemd` machine, these read-only commands are useful:
+
+```bash
+systemctl status
+systemctl list-units --type=service --state=running
+journalctl --boot --no-pager
+```
+
+Service names vary by distribution. For example, an SSH service may be called `ssh` or `sshd`:
+
+```bash
+systemctl status ssh
+systemctl status sshd
+```
+
+Use the name that exists on the machine. `systemctl` may be unavailable or may report that the system was not booted with `systemd` inside containers, some WSL setups, and minimal environments.
+
+### Start versus enable
+
+These ideas are easy to confuse:
+
+- **Start** means run the service now.
+- **Stop** means ask it to exit now.
+- **Restart** means stop and start it again.
+- **Reload** means ask it to reread configuration when supported.
+- **Enable** means arrange for it to start automatically during a future boot.
+- **Status** shows its current state and recent information.
+
+An enabled service can be stopped right now. A running service can be disabled for future boots. Always separate the immediate state from the boot-time policy when troubleshooting.
+
+## 9. CPU Scheduling and Concurrency
+
+The CPU executes instructions, but a server usually has more runnable work than it has CPU cores. The kernel scheduler divides CPU time among runnable threads.
+
+```text
+Runnable threads: A B C D E
+             |
+             v
+Kernel scheduler chooses work for each CPU
+             |
+             v
+CPU cores execute selected threads in time slices
+```
+
+This does not mean all work runs at exactly the same time. On a single core, the scheduler rapidly switches between tasks. On multiple cores, several threads can execute simultaneously.
+
+Important consequences:
+
+- CPU utilization near 100% may mean the workload is compute-bound, or it may indicate too many runnable tasks.
+- A process waiting on disk or network I/O may consume little CPU while still being slow.
+- Threads in one process share memory, which makes communication fast but creates synchronization risks.
+- Virtual machine vCPUs are scheduled by both the guest kernel and the cloud hypervisor.
+
+Useful observations include:
+
+```bash
+uptime
+ps -eo pid,ppid,stat,comm,%cpu,%mem --sort=-%cpu
+```
+
+The load average reported by `uptime` includes runnable work and, on Linux, tasks in uninterruptible sleep. It is not simply a percentage and should be compared with the number of available CPUs.
+
+## 10. Memory: Virtual Addresses and Physical RAM
+
+Applications use **virtual memory**. A process sees its own address space, while the kernel and the CPU's memory-management unit map virtual pages to physical RAM or other backing storage.
+
+```text
+Process A virtual memory  --->  physical pages
+Process B virtual memory  --->  physical pages
+Kernel virtual memory     --->  protected kernel pages
+```
+
+This design provides isolation and flexibility:
+
+- Two processes can use the same virtual address without referring to the same physical memory.
+- Shared libraries and shared memory can map selected pages into multiple processes.
+- The kernel can move inactive pages to swap when configured to do so.
+- File contents can be cached in RAM, so a later read may avoid the disk.
+
+### Memory terms
+
+- **RSS (resident set size):** Pages of a process currently resident in physical memory, with caveats for shared pages.
+- **Virtual size:** Address space the process has mapped or reserved; it is not the same as RAM consumption.
+- **Page cache:** RAM used to cache filesystem data.
+- **Swap:** Disk or another backing store used for inactive memory pages; it is much slower than RAM and is not a replacement for enough memory.
+- **OOM killer:** A kernel mechanism that may terminate processes when the system cannot satisfy memory allocations.
+
+Inspect memory without changing the system:
+
+```bash
+free -h
+cat /proc/meminfo
+```
+
+In a cloud VM, memory pressure can cause latency, swapping, or an OOM kill even when CPU utilization is low. Capacity planning must consider memory, not only vCPU count.
+
+## 11. Storage: From a File to a Device
+
+When an application reads a file, several layers may be involved:
+
+```text
+Application: read("/var/log/app.log")
+             |
+             v
+File descriptor and Virtual Filesystem (VFS)
+             |
+             v
+Filesystem: ext4, XFS, Btrfs, or another filesystem
+             |
+             v
+Block layer and page cache
+             |
+             v
+Device driver
+             |
+             v
+Block device: physical disk or cloud-attached volume
+```
+
+The VFS gives applications a common file API even when the underlying filesystem differs. A **mount** attaches a filesystem at a directory in the single directory tree. The next lesson covers the visible directory layout; here, focus on the layers that make storage work.
+
+Linux also represents many devices through entries under `/dev`, while `/proc` and `/sys` expose dynamic information about processes, the kernel, and devices. These are interfaces to the running system, not ordinary folders of permanent application data.
+
+Useful read-only inspection commands are:
+
+```bash
+lsblk
+findmnt
+df -h
+df -i
+```
+
+These answer different questions:
+
+- `lsblk`: What block devices and partitions exist?
+- `findmnt`: What filesystems are mounted and where?
+- `df -h`: How much filesystem space is used?
+- `df -i`: How many filesystem inodes are available?
+
+In the cloud, a VM's root disk and attached volumes are usually block storage. Object storage such as an S3-compatible bucket is a different service with different access semantics; it is not simply another local disk, even when a tool makes it look mountable.
+
+## 12. Networking: From a Socket to the Network
+
+Applications normally use the **socket API** rather than controlling a network card directly.
+
+```text
+Application
+    |
+    | socket(), connect(), send(), recv()
+    v
+Linux socket layer
+    |
+    v
+TCP/UDP and IP network stack
+    |
+    v
+Routing, firewall hooks, and network namespace
+    |
+    v
+Network device driver and virtual or physical NIC
+    |
+    v
+Cloud virtual network and remote host
+```
+
+For a web request, the application may ask a resolver for an address, create a socket, connect to a destination port, send bytes, and wait for a response. The kernel tracks connections and moves packets through the network stack.
+
+Inspect the guest operating system's view of networking:
+
+```bash
+ip addr
+ip route
+ss -tuln
+```
+
+These commands show interfaces and addresses, routes, and listening TCP/UDP sockets. A cloud connection can still fail outside the guest because of provider firewalls, security groups, network ACLs, load balancers, DNS, or routing.
+
+This gives a useful troubleshooting distinction:
+
+- **Connection refused:** The host may be reachable, but no process is accepting the destination port, or a local control is actively rejecting it.
+- **Timeout:** A firewall, route, service, or remote system may be silently dropping traffic.
+- **Name resolution failure:** The application may not have obtained an IP address from DNS or its configured resolver.
+- **No route:** The kernel or an upstream network does not know where to send the packet.
+
+Do not assume every network failure is an application bug or every application failure is a cloud network problem. Test one layer at a time.
+
+## 13. Linux Security Architecture
+
+Linux security is layered too. The kernel uses process credentials and security mechanisms to decide whether an operation is allowed.
+
+### Users, groups, and permissions
+
+Each process has credentials such as a user ID (UID), group IDs (GIDs), and supplementary groups. Files and many other resources have owners and permission rules. The kernel checks these credentials when a process requests an operation.
+
+UID `0` is traditionally the root account and has broad privileges, but "root can do everything" is an unsafe mental shortcut. Modern Linux can restrict even privileged processes with capabilities and mandatory access-control policies.
+
+### Capabilities
+
+Linux can split traditional root powers into **capabilities**, such as:
+
+- `CAP_NET_BIND_SERVICE`: bind to ports below 1024
+- `CAP_CHOWN`: change file ownership
+- `CAP_SYS_ADMIN`: a broad group of administrative operations
+
+Granting only the capabilities a service needs is safer than giving it unrestricted privilege. Container runtimes commonly remove capabilities from containers by default or allow an operator to select them.
+
+### Mandatory access control and syscall filtering
+
+Additional layers can restrict what a process may do:
+
+- **SELinux** and **AppArmor** apply mandatory access-control policies.
+- **seccomp** filters system calls available to a process.
+- **Namespaces** restrict what resources a process can see.
+- **cgroups** limit and account for resource use, but are not by themselves a complete security boundary.
+
+Security controls can produce errors that look like ordinary permission problems. When a process has the expected Unix permissions but an operation is still denied, check the active security policy and logs rather than immediately granting more privilege.
+
+## 14. Advanced: Kernel Modules and Drivers
+
+Drivers connect the kernel to hardware or virtual devices. Some drivers are compiled into the kernel; others are loadable **kernel modules**.
+
+```text
+Application
+    |
+    v
+Kernel API
+    |
+    v
+Filesystem, network, or device subsystem
+    |
+    v
+Driver, built in or loadable as a module
+    |
+    v
+Hardware or virtual device
+```
+
+Cloud VMs commonly use virtual devices and paravirtualized drivers such as `virtio`. The guest does not see the provider's physical disk controller directly; it sees a virtual device exposed by the hypervisor.
+
+On systems where the tools are installed, these commands inspect modules and PCI devices:
+
+```bash
+lsmod
+lspci -k
+```
+
+Loading or unloading a module changes the running kernel and may interrupt access to a device. Use mutating module commands only when you understand the hardware and recovery path.
+
+## 15. Advanced: Namespaces and Control Groups
+
+Containers are not small virtual machines. They are ordinary Linux processes whose view of the system and use of resources have been constrained.
+
+### Namespaces
+
+Namespaces isolate what a process can see. Important namespace types include:
+
+| Namespace | Isolates or changes the view of |
+| --- | --- |
+| PID | Process IDs and process tree |
+| Mount | Mounted filesystems and paths |
+| Network | Interfaces, routes, ports, and network stack |
+| UTS | Hostname and domain name |
+| IPC | Inter-process communication resources |
+| User | User and group ID mappings |
+| Cgroup | Control-group view |
+
+A process inside a PID namespace may see itself as PID 1 even though the host assigns it a different PID. A process inside a network namespace can have its own virtual interfaces and routes.
+
+### Control groups
+
+**Control groups**, usually called cgroups, organize processes and apply resource controls. They can:
+
+- Limit or account for CPU use
+- Limit memory
+- Limit the number of processes
+- Track resource consumption
+- Apply controls to storage I/O on supported systems
+
+Container runtimes use namespaces, cgroups, capabilities, security policies, and filesystem isolation together. No single feature is "the container" and no single feature provides complete isolation.
+
+Inspect the current process's cgroup information when available:
+
+```bash
+cat /proc/self/cgroup
+```
+
+The format differs between cgroup versions and environments. Modern Linux systems commonly use cgroup v2, but you should inspect the actual host rather than assume.
+
+## 16. Linux in Virtual Machines and Containers
+
+Cloud architecture often places several layers together:
+
+### Virtual machine
+
+```text
+Cloud data center
+        |
+        v
+Hypervisor
+        |
+        v
+Virtual machine hardware
+        |
+        v
+Guest Linux kernel
+        |
+        v
+Guest user space and applications
+```
+
+A VM has its own guest kernel. The cloud provider manages the physical host and hypervisor, while the customer commonly manages the guest operating system, its updates, users, firewall, and applications. The exact division depends on the service.
+
+### Container
+
+```text
+Cloud data center
+        |
+        v
+Host or VM Linux kernel
+        |
+        v
+Container runtime
+        |
+        v
+Namespaces + cgroups + security controls
+        |
+        v
+Container processes and user-space files
+```
+
+Containers share the host kernel. A container image can contain a user-space filesystem, libraries, and application code, but it does not contain an independent kernel. This is why a Linux container normally requires a Linux kernel, directly or through a Linux VM provided by the platform.
+
+This also explains a common cloud pattern:
+
+```text
+Cloud VM
+  |
+  └── Linux kernel
+       |
+       └── Container runtime
+            ├── Web container
+            ├── Worker container
+            └── Proxy container
+```
+
+Containers are usually lighter and faster to start than VMs, but they are not automatically safer or better. The correct choice depends on isolation, portability, startup time, operational control, and workload requirements.
+
+## 17. A Layered Troubleshooting Method
+
+When a cloud server is not behaving as expected, walk through the architecture instead of guessing:
+
+1. **Application:** Is the application configured correctly and producing useful logs?
+2. **Process:** Is the expected process running, and is it consuming CPU or memory?
+3. **Service manager:** Did the service start, restart, or fail during boot?
+4. **Permissions and security:** Does the process have the correct UID, groups, capabilities, and security policy?
+5. **Memory and CPU:** Is the system under pressure or blocked on I/O?
+6. **Storage:** Is the expected filesystem mounted, full, or out of inodes?
+7. **Networking:** Is the service listening, is there a route, and are cloud or host firewalls allowing traffic?
+8. **Kernel and device layer:** Are drivers, kernel messages, or virtual devices reporting a failure?
+
+| Symptom | First places to investigate |
+| --- | --- |
+| `command not found` | Shell, `PATH`, package installation, executable permissions |
+| `permission denied` | UID/GID, file mode, ACLs, SELinux/AppArmor, capabilities |
+| Service is inactive | `systemctl status`, service logs, configuration, dependencies |
+| Service works manually but not after reboot | Enablement, environment variables, mount order, network readiness |
+| Process was killed | Memory pressure, OOM events, cgroup limits, supervisor policy |
+| Disk space looks available but writes fail | Inodes, read-only mount, quotas, permissions |
+| Port is unreachable | Listener, local firewall, route, cloud security controls, DNS |
+| System is slow with low CPU | Storage latency, memory pressure, network waits, processes in `D` state |
+
+Useful first commands are:
+
+```bash
+uname -r
+ps -ef
+free -h
+df -h
+lsblk
+ip route
+ss -tuln
+```
+
+Add service and journal commands when the machine uses `systemd`:
+
+```bash
+systemctl status <service-name>
+journalctl -u <service-name> --since "15 minutes ago"
+```
+
+Do not copy `<service-name>` literally. Replace it with the actual unit name. Also avoid running broad commands such as `kill -9` or recursive deletion commands as a first response. Diagnosis should come before disruption.
+
+## 18. Hands-On Architecture Lab
+
+Run this lab on a Linux machine, a disposable VM, WSL, or a non-production cloud instance. Most output is system-specific, so compare the shape and meaning rather than expecting identical text.
+
+### Step 1: Identify the system
+
+```bash
+uname -srmo
+cat /etc/os-release
+```
+
+Answer:
+
+- Which kernel release is running?
+- Which distribution and version are installed?
+- Is the machine using the architecture you expected, such as `x86_64` or `aarch64`?
+
+### Step 2: Observe the virtual hardware
+
+```bash
+lscpu
+free -h
+lsblk
+```
+
+Identify the CPU count, memory size, and block devices. On a cloud VM, remember that these are often virtual resources presented by a hypervisor.
+
+### Step 3: Find the first process
+
+```bash
+ps -p 1 -o pid,ppid,stat,comm,args
+cat /proc/1/comm
+```
+
+What program is PID 1? Is it `systemd`, `init`, an application, or something else? If you are inside a container, PID 1 may be different from PID 1 on the host.
+
+### Step 4: Observe your shell and a child process
+
+```bash
+printf 'Shell PID: %s\n' "$$"
+ps -p "$$" -o pid,ppid,stat,comm,args
+sleep 30 &
+child="$!"
+ps -p "$child" -o pid,ppid,stat,comm,args
+kill -TERM "$child"
+wait "$child" 2>/dev/null
+```
+
+The shell starts `sleep` as a child, `$!` records the most recent background PID, and `SIGTERM` asks it to exit. The final `wait` lets the shell collect the child's exit status.
+
+### Step 5: Inspect storage and networking
+
+```bash
+findmnt
+df -h
+ip addr
+ip route
+ss -tuln
+```
+
+If a command is not installed, note that fact rather than changing the machine during this first lesson. Minimal cloud images often omit diagnostic tools.
+
+### Step 6: Inspect the service manager when available
+
+```bash
+command -v systemctl
+```
+
+If that command prints a path, inspect the installed version:
+
+```bash
+systemctl --version
+```
+
+If `systemctl` exists and the system uses `systemd`, you can view running services:
+
+```bash
+systemctl list-units --type=service --state=running --no-pager
+```
+
+Do not use `systemctl start`, `stop`, `restart`, or `enable` in a production environment without understanding the impact.
+
+### Optional advanced step: observe system calls
+
+If `strace` is installed, run:
+
+```bash
+strace -c ls
+```
+
+Which system calls appear most often? Why might a simple directory listing need calls for opening files, reading directory entries, checking metadata, and writing output?
+
+## 19. Linux Architecture Cheat Sheet
+
+```text
+Firmware
+    |
+Bootloader
+    |
+Linux kernel
+    |- Scheduler and processes
+    |- Virtual memory
+    |- VFS, filesystems, and block devices
+    |- TCP/IP networking and sockets
+    |- Security enforcement
+    |- Drivers and modules
+    |
+System-call interface
+    |
+User space
+    |- PID 1 and service manager
+    |- Daemons and services
+    |- Libraries and language runtimes
+    |- Shells and command-line tools
+    |- Your applications
+```
+
+Remember the core relationships:
+
+```text
+Distribution = kernel + user space + tools + defaults
+Program      = instructions stored on disk
+Process      = a running instance of a program
+Service      = a managed long-running function
+System call  = a controlled request from user space to the kernel
+VM           = guest OS and guest kernel on virtual hardware
+Container    = isolated user-space processes sharing a kernel
+```
+
+## Summary
+
+Linux is best understood as a set of cooperating layers. Firmware and a bootloader start the kernel. The kernel manages CPU, memory, storage, networking, devices, and security. User-space libraries, shells, services, and applications use system calls to request that work. PID 1 brings the system into an operational state and often supervises services.
+
+For cloud engineering, this mental model explains why:
+
+- A VM has a guest kernel that you may need to patch and configure.
+- A container shares a host kernel and uses namespaces and cgroups for isolation and resource control.
+- A service can fail because of its process, configuration, permissions, storage, network, or kernel layer.
+- Cloud-provider controls and guest Linux controls both matter for connectivity and security.
+- The fastest troubleshooting path is usually to identify the failing layer before changing anything.
+
+### Check your understanding
+
+1. What is the difference between the Linux kernel and a Linux distribution?
+2. What happens between firmware starting and an SSH login becoming available?
+3. Why can an application not normally access a disk by writing directly to its hardware registers?
+4. What is the difference between a program and a process?
+5. Why is PID 1 special?
+6. What is the difference between starting a service and enabling it?
+7. Why can a system with low CPU utilization still be slow?
+8. Which layers would you investigate if a service is running but its port is unreachable?
+9. Why does a container not need its own Linux kernel?
+10. What do namespaces and cgroups contribute to container operation?

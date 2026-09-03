@@ -1,0 +1,322 @@
+---
+sidebar_position: 4
+description: "Understand how Linux permissions work with files, directories, users, groups, and the chmod, chown, and chgrp commands."
+---
+
+# 🐧 Linux Permissions
+
+Linux permissions control which processes may read, change, execute, or search resources. The kernel evaluates the process's credentials against the resource's owner, group, and access rules.
+
+The familiar permission string is only one layer. Linux can also enforce access through file ACLs, capabilities, SELinux, AppArmor, filesystem flags, mount options, and other security mechanisms.
+
+By the end of this lesson, you should be able to:
+
+- Read the permission information shown by `ls -l`
+- Explain the different meaning of `r`, `w`, and `x` for files and directories
+- Change modes and ownership safely with `chmod`, `chown`, and `chgrp`
+- Use `umask`, special bits, and ACLs for common access designs
+- Diagnose permission failures without making everything world-writable
+
+## Reading `ls -l`
+
+Example output:
+
+```text
+-rwxr-x--- 1 alice developers 2048 May 1 10:30 deploy.sh
+```
+
+The first field contains the file type and mode bits:
+
+```text
+-   rwx   r-x   ---
+|    |     |     |
+type owner group others
+```
+
+| Part | Meaning |
+| --- | --- |
+| `-` | Regular file |
+| `d` | Directory |
+| `l` | Symbolic link |
+| `b`, `c`, `p`, `s` | Block device, character device, named pipe, or socket |
+| `rwx` | Owner permissions |
+| `r-x` | Group permissions |
+| `---` | Permissions for other users |
+
+The remaining fields commonly show link count, owner name, group name, size, modification time, and file name. Names are looked up from UIDs and GIDs; use `ls -ln` to display numeric IDs when a name lookup may be misleading.
+
+## What `r`, `w`, and `x` mean
+
+The meaning depends on whether the object is a regular file or a directory:
+
+| Permission | Regular file | Directory |
+| --- | --- | --- |
+| `r` | Read file contents | List names in the directory |
+| `w` | Change or truncate file contents | Create, remove, or rename entries, usually together with `x` |
+| `x` | Execute the file as a program, when it is a valid executable or script | Search or traverse the directory; access entries by name |
+
+Directory `x` is often misunderstood. You may be able to list a directory with `r` but still be unable to open an item inside it without `x`. You usually need both `w` and `x` on a directory to create or remove entries.
+
+Deleting a file is controlled primarily by the permissions on its parent directory, not by the file's own write bit. This is why a user may be unable to remove a read-only file from a protected directory, or may remove a writable file if the parent directory allows it.
+
+## How Linux selects a permission class
+
+For ordinary Unix mode bits, Linux does not combine all matching permissions. It selects one class:
+
+1. If the process's effective UID matches the file owner, use the owner bits.
+2. Otherwise, if the process is in the file's group, use the group bits.
+3. Otherwise, use the other bits.
+
+For example, if a user owns a file, membership in a group with more permissive group bits does not add to the owner's permissions. Extended ACLs change the details, but the owner, named-user, group, mask, and other entries still have defined selection rules.
+
+Inspect ownership and modes:
+
+```bash
+ls -l report.txt
+stat report.txt
+ls -ld project/
+```
+
+`ls -ld` is important for directories: `ls -l project/` lists the contents, while `ls -ld project/` displays the directory itself.
+
+## Changing permissions with `chmod`
+
+`chmod` changes file mode bits. It accepts symbolic or octal notation:
+
+```bash
+chmod u+x deploy.sh
+chmod g-w report.txt
+chmod o-r secret.txt
+chmod a+r public.txt
+chmod 640 report.txt
+```
+
+In symbolic notation:
+
+- `u` means owner, `g` group, `o` others, and `a` all classes.
+- `+` adds permissions, `-` removes them, and `=` sets the selected class exactly.
+- `r`, `w`, and `x` mean read, write, and execute/search.
+
+In octal notation, each permission has a value:
+
+| Permission | Value |
+| --- | ---: |
+| `r` | 4 |
+| `w` | 2 |
+| `x` | 1 |
+
+Add the values for each class:
+
+| Mode | Owner | Group | Others | Typical meaning |
+| --- | --- | --- | --- | --- |
+| `600` | `rw-` | `---` | `---` | Private file |
+| `640` | `rw-` | `r--` | `---` | Owner edits; group reads |
+| `644` | `rw-` | `r--` | `r--` | Common non-sensitive file |
+| `750` | `rwx` | `r-x` | `---` | Private directory or executable |
+| `755` | `rwx` | `r-x` | `r-x` | Publicly readable/traversable directory or program |
+| `700` | `rwx` | `---` | `---` | Private directory |
+
+Use the smallest mode that meets the requirement. Avoid commands such as `chmod -R 777` as a general fix. They grant write access to every local user and often conceal the actual owner, group, or path problem. Recursive changes can also assign inappropriate execute bits to data files.
+
+## Changing ownership with `chown` and `chgrp`
+
+Ownership determines which user and group permission classes apply:
+
+```bash
+sudo chown alice report.txt
+sudo chown alice:developers report.txt
+sudo chgrp developers report.txt
+```
+
+`chown user:group file` changes both owner and group. `chgrp` changes only the group. On a typical Linux system, changing a file's owner requires root or an appropriate capability. A file owner may be allowed to change the group to one of the user's groups; exact behavior can also depend on filesystem and security policy.
+
+Be careful with recursive ownership changes:
+
+```bash
+sudo chown -R appuser:appgroup /srv/example
+```
+
+This can be correct for a deliberately owned application tree, but it can also damage system paths or alter special files. Verify the path with `pwd`, `ls -ld`, and a small sample before using `-R`.
+
+## `umask`: default permissions for new objects
+
+`umask` is a process setting that removes permission bits when a program creates a file or directory:
+
+```bash
+umask
+umask 027
+```
+
+Without an extended default ACL, the usual base modes are:
+
+- Regular files: `666` (`rw-rw-rw-`), with execute bits not added by default
+- Directories: `777` (`rwxrwxrwx`)
+
+The effective mode is commonly described as:
+
+```text
+requested mode AND the inverse of umask
+```
+
+With `umask 027`, a new regular file commonly becomes `640`, and a new directory commonly becomes `750`. The exact result depends on the mode requested by the creating program and whether a default ACL is present.
+
+`umask` applies to the process and its children. A setting in an interactive shell does not automatically configure every service, login method, container, or scheduled job. Check the service's execution environment when investigating unexpectedly permissive files.
+
+## Special permission bits
+
+The leading octal digit represents special bits:
+
+| Bit | Name | Effect |
+| --- | --- | --- |
+| `4` | Set-user-ID (setuid) | An executable can run with the file owner's effective UID |
+| `2` | Set-group-ID (setgid) | An executable can run with the file group's effective GID; on a directory, new entries inherit the directory's group |
+| `1` | Sticky bit | On a directory, users generally may remove or rename only files they own, files owned by the directory, or files allowed by a privileged policy |
+
+Examples:
+
+```bash
+chmod 4755 program
+chmod 2775 shared/
+chmod 1777 shared-tmp/
+```
+
+Setuid and setgid executables require careful review because a vulnerability can turn their elevated identity into a privilege-escalation path. Do not add these bits to arbitrary programs.
+
+The sticky bit is commonly used on shared temporary directories such as `/tmp`. A world-writable directory without the sticky bit allows one user to remove or rename another user's files if the directory permissions permit it.
+
+You can see special bits in symbolic output: `s` appears in an owner or group execute position, and `t` appears in the others execute position. An uppercase `S` or `T` indicates the special bit is set while the corresponding execute bit is not.
+
+## Access Control Lists (ACLs)
+
+Traditional mode bits provide one owner, one group, and other-user permissions. A POSIX **Access Control List (ACL)** can add entries for named users and groups without changing the file's single owning group.
+
+On systems with the ACL tools installed:
+
+```bash
+getfacl report.txt
+setfacl -m u:alice:rw report.txt
+setfacl -m g:developers:rwx shared/
+setfacl -m d:g:developers:rwx shared/
+```
+
+The last command sets a **default ACL** on a directory so new entries can inherit group access. Inspect the result with:
+
+```bash
+getfacl shared/
+ls -ld shared/
+```
+
+An extended ACL often causes `ls -l` to show a `+` after the mode string. ACLs can contain an effective-rights **mask**. The mask limits named-user entries, named-group entries, and the owning-group entry; it does not limit the file owner or other entry.
+
+For example, an ACL may grant `rwx` to `developers` but show an effective `r--` permission because the mask is `r--`. Always read the complete `getfacl` output rather than relying only on `ls -l`.
+
+ACLs are powerful but add operational complexity. Document them, include them in backups where required, and remove stale entries when people or services leave. A recursive ACL change can be as dangerous as a recursive `chmod`.
+
+## Symbolic links and path traversal
+
+Permissions are checked along the complete path. To open `/srv/app/config/settings.yml`, the process needs search (`x`) access to the relevant parent directories, as well as appropriate permissions on the file.
+
+On Linux, symbolic-link permission bits are generally ignored; access is checked against the link target and the directories in the resolved path. Be careful when applying recursive commands to paths containing links.
+
+Use `namei` to inspect each path component when it is available:
+
+```bash
+namei -l /srv/app/config/settings.yml
+```
+
+This can reveal that the file itself is readable but a parent directory blocks traversal.
+
+## Unix permissions are not the only control
+
+Traditional mode bits are **discretionary access control (DAC)**. Other Linux controls can further restrict an operation:
+
+- **Capabilities** split parts of root's authority into smaller privileges.
+- **SELinux** and **AppArmor** apply mandatory access-control policies.
+- **Filesystem flags** such as immutable can prevent changes even for an owner.
+- **Mount options** can restrict execution, setuid behavior, or device use.
+- **Container namespaces and cgroups** change visibility and resource access.
+
+If the UID, GID, and mode look correct but access is still denied, inspect the active security policy and logs. Giving broader Unix permissions may not fix a mandatory policy denial and can create a new exposure.
+
+## Common secure patterns
+
+- Keep application secrets at `600` or another narrowly controlled mode, with ownership assigned to the service account that needs them.
+- Use a dedicated group for shared project data instead of granting access to all users.
+- Use a setgid directory and, where necessary, a default ACL when new files must retain a shared group.
+- Keep service directories private and expose only deliberately public content.
+- Test access as the actual service identity, for example with `sudo -u appuser`.
+- Review permissions after package installation, deployment, account changes, and backup restoration.
+- Avoid making a file world-writable to solve an unknown problem.
+
+There is no universally correct mode such as `644` or `755`. The correct mode depends on who must read, write, execute, traverse, create, delete, and administer the resource.
+
+## A permission troubleshooting workflow
+
+When a process receives `Permission denied`:
+
+1. Identify the process identity with `id` or `ps`.
+2. Inspect each path component with `namei -l`.
+3. Check the file's owner, group, and mode with `ls -l` or `stat`.
+4. Check extended ACLs with `getfacl`.
+5. Test the operation as the service user without changing permissions.
+6. Check SELinux, AppArmor, capabilities, mount options, and filesystem flags.
+7. Make the smallest documented change, then test again.
+
+For example:
+
+```bash
+id appuser
+namei -l /srv/example/config.yml
+stat /srv/example/config.yml
+getfacl /srv/example/config.yml
+sudo -u appuser test -r /srv/example/config.yml
+```
+
+The final command tests whether `appuser` can read the file and returns a success or failure status without printing the secret contents.
+
+## Safe practice lab
+
+Use a disposable directory in your home directory:
+
+```bash
+mkdir -p "$HOME/permissions-lab/shared"
+touch "$HOME/permissions-lab/shared/report.txt"
+chmod 640 "$HOME/permissions-lab/shared/report.txt"
+chmod 750 "$HOME/permissions-lab/shared"
+ls -ld "$HOME/permissions-lab/shared"
+ls -l "$HOME/permissions-lab/shared/report.txt"
+umask 027
+touch "$HOME/permissions-lab/shared/private.txt"
+stat "$HOME/permissions-lab/shared/private.txt"
+```
+
+Predict the modes before running the commands. The exact owner and group names will depend on your account and distribution.
+
+## Summary
+
+- Linux checks a process's credentials against resource ownership and permission rules.
+- Mode bits divide access into owner, group, and others; `r`, `w`, and `x` have different meanings for files and directories.
+- `chmod` changes modes, while `chown` and `chgrp` change ownership; recursive changes require special care.
+- `umask` removes permission bits from newly created objects but does not grant permissions.
+- Setuid, setgid, and sticky bits provide specialized behavior and can create security risk when misused.
+- ACLs provide more specific user and group rules, but their masks and inheritance must be understood.
+- SELinux, AppArmor, capabilities, mount options, and filesystem flags can further restrict access.
+- Diagnose the identity, path, mode, ACL, and security policy before widening permissions.
+
+### Check your understanding
+
+1. What is the difference between the group permission on a file and a user's supplementary groups?
+2. Why can a user list a directory but fail to open a file inside it?
+3. Which directory controls whether a file can be deleted?
+4. What is the difference between `chmod 640 file` and `chmod 750 directory`?
+5. What does `umask 027` commonly produce for a new file and a new directory?
+6. What is the purpose of the setgid bit on a shared directory?
+7. Why should you inspect `getfacl` when `ls -l` appears to show the expected permissions?
+8. What should you check if Unix mode bits look correct but access is denied?
+
+## Further reading
+
+- [`chmod(1)` Linux manual page](https://man7.org/linux/man-pages/man1/chmod.1.html)
+- [`acl(5)` Linux manual page](https://man7.org/linux/man-pages/man5/acl.5.html)
+- [`setfacl(1)` Linux manual page](https://man7.org/linux/man-pages/man1/setfacl.1.html)
+- [Red Hat: Managing users and groups](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/7/html/system_administrators_guide/ch-managing_users_and_groups)

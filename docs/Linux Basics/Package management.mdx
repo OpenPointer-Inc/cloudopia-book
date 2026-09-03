@@ -1,0 +1,330 @@
+---
+sidebar_position: 7
+description: "Understand Linux packages, repositories, dependency resolution, updates, and safe software installation."
+---
+
+# 🐧 Package management
+
+Linux software is usually distributed as **packages**. A package contains an application or library, metadata, dependency information, configuration files, documentation, and sometimes scripts that run during installation or removal.
+
+A **package manager** installs, upgrades, removes, and queries packages while maintaining a database of the system's installed state. It helps ensure that required libraries are present and that packages from the same distribution work together.
+
+By the end of this lesson, you should be able to:
+
+- Explain the difference between a package, package manager, and repository
+- Use common package commands on Debian-based, RPM-based, and Alpine systems
+- Understand dependencies, package databases, and repository trust
+- Update software safely and diagnose common package failures
+- Apply package-management practices to servers, automation, and containers
+
+## Package manager architecture
+
+```text
+Repository metadata and package archives
+                  |
+          Package manager and resolver
+                  |
+       Installed-package database
+                  |
+     Files, configuration, and executables
+```
+
+The package manager reads configured repositories, selects compatible versions, calculates dependencies and conflicts, downloads packages, verifies them, and asks a lower-level installer to unpack and configure them.
+
+Repositories usually provide signed metadata and, depending on the ecosystem, signed package artifacts. The manager's trust configuration determines which signing keys and sources are accepted. HTTPS protects a connection, but it does not by itself decide whether a repository is trustworthy.
+
+## Package ecosystems
+
+Linux distributions use different package formats and tools:
+
+| Distribution family | Package format | High-level manager | Lower-level database or tool |
+| --- | --- | --- | --- |
+| Debian and Ubuntu | `.deb` | `apt` | `dpkg` |
+| Fedora, RHEL, and related systems | `.rpm` | `dnf` | `rpm` |
+| Alpine Linux | `.apk` | `apk` | `apk` database and tools |
+| Arch Linux | `.pkg.tar.*` | `pacman` | `pacman` package database |
+
+The package name and command syntax differ, but the concepts are similar. Use the manager that belongs to the distribution instead of mixing package files from unrelated distributions.
+
+Find the distribution before following a command guide:
+
+```bash
+cat /etc/os-release
+command -v apt dnf apk pacman
+```
+
+Only one or a small subset of these managers will normally be available.
+
+## Debian and Ubuntu: APT
+
+APT is the high-level package manager for Debian-based systems. `dpkg` installs and queries `.deb` packages, while APT resolves dependencies and obtains packages from configured repositories.
+
+Refresh local repository metadata before installing or upgrading:
+
+```bash
+sudo apt update
+```
+
+This downloads current package indexes. It does not upgrade installed packages.
+
+Common interactive operations are:
+
+```bash
+apt search nginx
+apt show nginx
+sudo apt install nginx
+apt list --upgradable
+sudo apt upgrade
+sudo apt remove nginx
+sudo apt purge nginx
+sudo apt autoremove
+```
+
+`remove` generally leaves some package configuration files, while `purge` also removes package-managed configuration. Review the proposed changes before accepting a removal, especially on a server.
+
+Useful `dpkg` queries include:
+
+```bash
+dpkg -l nginx
+dpkg -L nginx
+dpkg -S /usr/bin/curl
+dpkg --audit
+```
+
+These show package status, files installed by a package, the package that owns a path, and packages in an incomplete or inconsistent state.
+
+For scripts, `apt-get` is often preferred over the interactive `apt` command because it has a more stable scripting interface. Automation should still make package sources, versions, noninteractive behavior, and reboot requirements explicit.
+
+## Fedora and RHEL: DNF and RPM
+
+RPM is the package format and low-level package database used by Fedora, RHEL, and related distributions. `dnf` handles repositories and dependency resolution.
+
+```bash
+sudo dnf makecache
+dnf search nginx
+dnf info nginx
+sudo dnf install nginx
+sudo dnf check-update
+sudo dnf upgrade
+sudo dnf remove nginx
+dnf history
+```
+
+`dnf check-update` can return a nonzero status when updates are available, so automation should interpret its exit codes according to the command's documentation rather than treating every nonzero result as a failed update.
+
+Useful RPM queries include:
+
+```bash
+rpm -q nginx
+rpm -ql nginx
+rpm -qf /usr/bin/curl
+rpm -V nginx
+```
+
+These query whether a package is installed, list its files, identify the package owning a path, and verify recorded file attributes where supported.
+
+## Alpine: `apk`
+
+Alpine Linux uses the small `apk` package manager and `.apk` packages. Repository definitions are commonly stored in `/etc/apk/repositories`.
+
+```bash
+sudo apk update
+apk search nginx
+apk info nginx
+sudo apk add nginx
+sudo apk upgrade
+sudo apk del nginx
+apk info -L nginx
+```
+
+Alpine's package and repository versions are tied closely to the Alpine release. Do not blindly mix repositories from different releases; doing so can create incompatible dependencies.
+
+## Dependencies and transactions
+
+Applications usually depend on libraries, interpreters, services, or specific version ranges. The package manager builds a dependency graph:
+
+```text
+Application
+    |
+    +-- Library A
+    |       |
+    |       +-- Library B
+    |
+    +-- Runtime
+```
+
+The resolver selects a compatible set of packages and detects conflicts. A transaction should either complete as a coherent operation or leave enough metadata for recovery, but power loss, full disks, interrupted scripts, broken repositories, or incompatible third-party packages can still leave a system partially configured.
+
+Low-level tools do not always resolve dependencies. For example, installing a local `.deb` with `dpkg` may require a later APT operation to obtain missing dependencies. Prefer the distribution's high-level manager when it can access the required source.
+
+If an APT installation is interrupted, inspect the proposed repair before running it:
+
+```bash
+dpkg --audit
+sudo dpkg --configure -a
+sudo apt-get -f install
+```
+
+These commands can change the system. Read their output and understand the proposed package changes before confirming. Equivalent recovery actions differ across package managers.
+
+## Repositories and trust
+
+A repository is a source of package indexes and package archives. A system may use distribution repositories, an internal mirror, a vendor repository, or a carefully approved third-party source.
+
+Use these practices:
+
+- Prefer the distribution's official repositories when they provide the required software.
+- Add third-party repositories only when their ownership, signing keys, support, and update process are understood.
+- Keep repository sources restricted and review changes through configuration management.
+- Do not install a package solely because a random website provides a download link.
+- Verify signatures and checksums using the distribution's documented mechanism.
+- Treat package-installation scripts as privileged code; they can modify users, files, services, and system configuration.
+
+Repository trust is also a supply-chain decision. A signed package proves that it was signed by a trusted key; it does not prove that the package's publisher is safe for every use case or that the software has no vulnerability.
+
+## Updates and patching
+
+Updating software reduces exposure to known vulnerabilities and bugs, but updates can change behavior. A safe patch process usually includes:
+
+1. Identify the operating system, repositories, packages, and required support window.
+2. Read relevant release notes and security advisories.
+3. Test updates in a representative environment.
+4. Take backups or snapshots appropriate to the recovery plan.
+5. Apply updates in controlled batches.
+6. Restart affected services and reboot when the kernel or other components require it.
+7. Verify application behavior, logs, health checks, and package state.
+8. Record exceptions and remove them when possible.
+
+Updating a package may not restart the process using its old libraries. Tools such as `needrestart` on some Debian systems can identify services or sessions that need restarting, but behavior is distribution-specific. A kernel update normally takes effect only after booting the new kernel.
+
+Do not leave servers unpatched because updates might be inconvenient. Instead, use staging, maintenance windows, rollback plans, and tested automation to control the risk.
+
+## Package versions and reproducibility
+
+Unpinned updates provide security fixes automatically but can introduce unexpected behavior. Fully pinned versions improve reproducibility but require an intentional process for reviewing and applying security updates.
+
+Choose a strategy based on the workload:
+
+- Use distribution security updates for normal server maintenance.
+- Pin versions for tightly tested deployments and update them deliberately.
+- Record repository URLs, release versions, package versions, and architecture.
+- Prefer image or configuration rebuilds over undocumented manual changes.
+- Keep a rollback or rebuild path for failed updates.
+
+Package names can resolve to different versions on different architectures, releases, or repository priorities. A package that exists on a developer laptop may not exist in a minimal cloud image.
+
+## System packages versus language packages
+
+Linux package managers are not the same as language-specific tools such as `pip`, `npm`, `gem`, or `cargo`:
+
+- System managers install software integrated with the operating system and its service/configuration conventions.
+- Language managers install libraries for an application or language runtime.
+- A system package may be patched and integrated by the distribution.
+- A language package may have its own lockfile, registry, and vulnerability process.
+
+Avoid installing application dependencies into the global system environment when a virtual environment, project-local dependency directory, or container build provides isolation. Document which tool owns each dependency.
+
+## Containers and images
+
+Container images are commonly built by installing packages during a build. Good image practices include:
+
+- Start from a maintained minimal base image.
+- Pin the base image by a trusted tag or digest appropriate to the update process.
+- Refresh package indexes and install security updates in the same build stage when required by the distribution.
+- Remove package-manager caches when they are not needed at runtime.
+- Scan the resulting image and investigate vulnerabilities rather than hiding them.
+- Rebuild and redeploy images instead of modifying running containers manually.
+
+Do not copy host package commands into a container without considering the container's distribution. A Debian host, Alpine container, and RPM-based base image use different package databases and libraries.
+
+## Troubleshooting package problems
+
+When an installation or command fails, identify the layer:
+
+| Symptom | First checks |
+| --- | --- |
+| Package not found | Distribution release, repository configuration, package name, architecture |
+| Dependency conflict | Enabled repositories, held/pinned packages, mixed releases, proposed transaction |
+| Repository update fails | DNS, time, TLS certificates, proxy, repository availability, signing keys |
+| Command still missing | Package contents, `PATH`, architecture, service or application name |
+| Package installed but service is down | Service status, logs, configuration, port conflicts, permissions |
+| Disk fills during update | Filesystem space, inodes, package cache, old kernels, logs |
+| Update completed but behavior changed | Release notes, configuration files, service restart, dependency version |
+
+Useful inspection commands include:
+
+```bash
+command -v nginx
+type -a nginx
+apt-cache policy nginx       # Debian and Ubuntu
+dnf repoquery --info nginx   # DNF systems, when available
+apk policy nginx              # Alpine
+```
+
+Do not force package installation or disable signature verification as a first response. Those actions can make a system inconsistent or install untrusted code.
+
+## Automation and operational safety
+
+Package installation changes the system, so automation should be explicit and repeatable:
+
+- Run with the minimum required privilege.
+- Declare repositories and package state in configuration management or image builds.
+- Avoid interactive prompts in unattended jobs; provide reviewed configuration and noninteractive settings where appropriate.
+- Capture transaction output and exit codes.
+- Use locks or orchestration so two package operations do not run concurrently.
+- Schedule reboots and service restarts deliberately.
+- Test the result, not only the package-manager exit status.
+
+On production servers, avoid making an urgent manual change that is not recorded. A package manager can tell you what is installed, but your team still needs to know why it is installed and which workload owns it.
+
+## Safe read-only practice
+
+These commands inspect a system without installing or removing packages:
+
+```bash
+cat /etc/os-release
+command -v apt dnf apk pacman
+dpkg -l 2>/dev/null | head
+rpm -qa 2>/dev/null | head
+apk info 2>/dev/null | head
+```
+
+Some commands will produce no output or an error when their package manager is not installed. That is expected; identify the correct ecosystem before using a mutating command.
+
+## Practical design checklist
+
+1. Which distribution, release, architecture, and package manager does the system use?
+2. Which repositories and signing keys are trusted, and who owns them?
+3. Which packages, versions, services, and files does the workload require?
+4. How are security updates tested, applied, monitored, and rolled back?
+5. Are system dependencies separated from application-language dependencies?
+6. Does automation record package state, transaction output, and reboot requirements?
+7. Can the server or container be rebuilt from a known, maintained definition?
+
+## Summary
+
+- Packages bundle software, metadata, dependencies, configuration, and installation behavior.
+- High-level package managers such as APT and DNF resolve dependencies and use repositories; lower-level tools manage package databases and archives.
+- Package ecosystems differ across Debian, RPM-based, Alpine, and Arch distributions.
+- Repository configuration and signing-key trust are part of the software supply chain.
+- Updates should be tested, applied in controlled batches, verified, and followed by required service restarts or reboots.
+- Version pinning improves reproducibility but must not become an excuse to ignore security updates.
+- System package managers and language-specific package managers solve different dependency problems.
+- Prefer repeatable image or configuration-management changes over undocumented manual fixes.
+
+### Check your understanding
+
+1. What is the difference between a package manager and a repository?
+2. What does `apt update` do, and why does it not install updates?
+3. Why should a low-level package tool not always be used instead of a high-level manager?
+4. Why can a signed package still require a supply-chain risk review?
+5. Why might an updated package require a service restart or system reboot?
+6. What is one difference between system packages and language-specific packages?
+7. Why should a container image be rebuilt instead of manually changed while running?
+
+## Further reading
+
+- [Debian Handbook: The APT Tools](https://www.debian.org/doc/manuals/debian-handbook/apt.html)
+- [Debian Reference: Debian package management](https://www.debian.org/doc/manuals/debian-reference/ch02.html)
+- [`dpkg(1)` Linux manual page](https://man7.org/linux/man-pages/man1/dpkg.1.html)
+- [Alpine Package Keeper documentation](https://wiki.alpinelinux.org/wiki/Alpine_Package_Keeper)

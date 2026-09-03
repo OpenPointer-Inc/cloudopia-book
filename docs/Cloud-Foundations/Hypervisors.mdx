@@ -1,0 +1,168 @@
+---
+sidebar_position: 16
+description: "Learn how hypervisors create, isolate, schedule, and manage virtual machines."
+---
+
+# Hypervisors
+
+A **hypervisor**, also called a **virtual machine monitor (VMM)**, is the software layer that creates and runs virtual machines. It controls access to physical CPU, memory, storage, and devices while presenting each VM with virtual hardware.
+
+The hypervisor is the enforcement point between a physical host and its guests. It is a core part of virtualization, but a complete virtualization platform also includes management tools, virtual networking, storage, images, monitoring, and orchestration.
+
+By the end of this lesson, you should be able to:
+
+- Explain what a hypervisor does
+- Distinguish type 1 and type 2 hypervisors
+- Describe CPU, memory, device, and network virtualization
+- Recognize performance, isolation, and operational trade-offs
+
+## Two hypervisor architectures
+
+### Type 1: bare-metal
+
+A **type 1 hypervisor** runs directly on the physical hardware:
+
+```text
+Physical hardware
+        |
+Type 1 hypervisor
+        |
+  Multiple VMs
+```
+
+This architecture is common in servers and data centers because it minimizes extra layers between the hypervisor and hardware. Examples include VMware ESXi, Microsoft Hyper-V, Xen, and KVM-based platforms.
+
+### Type 2: hosted
+
+A **type 2 hypervisor** runs as software on a conventional host operating system:
+
+```text
+Physical hardware
+        |
+    Host OS
+        |
+Type 2 hypervisor
+        |
+  Multiple VMs
+```
+
+This model is common on developer laptops and workstations. Examples include Oracle VirtualBox and VMware Workstation. It is convenient because the host OS manages many hardware details, but the additional layer can affect performance and availability.
+
+The type 1 and type 2 labels are useful architectural categories, although real products can combine components. For example, KVM is integrated into the Linux kernel and is commonly treated as a type 1 hypervisor in server virtualization; QEMU may provide virtual hardware and device emulation alongside it.
+
+## What a hypervisor does
+
+| Responsibility | How it works |
+| --- | --- |
+| **CPU virtualization** | Schedules vCPUs onto physical CPU threads and applies priorities or limits |
+| **Memory virtualization** | Maps guest memory to physical memory and isolates guest address spaces |
+| **Device virtualization** | Provides virtual disks, network cards, consoles, and other devices |
+| **I/O control** | Routes guest storage and network operations to physical or distributed resources |
+| **Isolation** | Prevents a guest from directly accessing another guest or protected host memory |
+| **Lifecycle control** | Starts, stops, pauses, resumes, and exposes VM state to management tools |
+
+The hypervisor may emulate hardware, use optimized virtual drivers, or pass a device through to a guest. The choice affects compatibility, performance, and isolation.
+
+## Hardware-assisted virtualization
+
+Modern processors provide virtualization extensions, such as Intel VT-x, AMD-V, and equivalent features on other architectures. These extensions let the hypervisor run guest code efficiently while safely intercepting privileged operations that must be controlled.
+
+Without hardware assistance, a platform may need more software emulation, which is generally slower. Hardware support does not remove all overhead: memory translation, interrupts, device I/O, scheduling, and contention still affect performance.
+
+## Virtual CPUs and memory
+
+A vCPU is not necessarily a dedicated physical core. The hypervisor schedules vCPUs according to demand and configured limits. If a guest needs more CPU than the host can provide, it waits or receives less processing time.
+
+Memory virtualization uses address translation to keep guest memory separate. Platforms may use techniques such as:
+
+- **Memory overcommit:** Assign more virtual memory than the host physically has, relying on workloads not reaching their maximum simultaneously.
+- **Ballooning:** Ask a guest driver to return memory so it can be assigned elsewhere.
+- **Host swapping:** Move memory pages to storage when physical memory is under pressure; this can be very slow.
+- **CPU or memory pinning:** Keep a VM's resources on selected physical CPUs or memory areas for predictable performance.
+
+Overcommit can improve utilization, but aggressive overcommit can create unpredictable latency. High-performance workloads may require dedicated capacity, NUMA-aware placement, or bare metal.
+
+## Virtual devices and I/O
+
+A guest needs devices even though it cannot directly control the host hardware. A hypervisor can:
+
+- Emulate a familiar device for compatibility
+- Present a paravirtualized device with a guest driver optimized for virtualization
+- Use an IOMMU and device passthrough for controlled direct access, such as a GPU
+
+Paravirtualized drivers, such as virtio devices in KVM-based environments, can reduce emulation overhead. Device passthrough can provide near-native performance, but it may limit live migration and tie the VM to a particular host or device.
+
+Network virtualization follows the same pattern. A VM's virtual network card connects to a virtual switch, which applies routing, security rules, address translation, and traffic limits before forwarding to physical networks.
+
+## Hypervisor security
+
+The hypervisor and its management interface are high-value targets because a failure could affect multiple VMs. Secure operation includes:
+
+- Applying hypervisor and firmware updates through a controlled process
+- Restricting management access and requiring strong authentication
+- Separating management, storage, and workload networks where possible
+- Using secure boot and measured or attested boot when supported
+- Limiting administrative roles and auditing VM operations
+- Protecting images, snapshots, and virtual disks
+- Monitoring for unusual resource or management activity
+
+Virtual machine isolation is strong but not magical. Hypervisor vulnerabilities, misconfigured management permissions, hardware side channels, and unsafe device passthrough can create risk. Defense in depth remains necessary.
+
+In a public cloud, the provider normally patches and secures the hypervisor. The customer is still responsible for the guest operating system, applications, identities, network configuration, and data.
+
+## Management is more than the hypervisor
+
+The hypervisor runs VMs on a host. A management platform or cloud control plane usually adds:
+
+- Host selection and capacity scheduling
+- VM images, templates, and metadata
+- Virtual networks and storage attachment
+- Access control, quotas, and billing
+- Health monitoring and automated replacement
+- Clustering, live migration, and maintenance workflows
+
+High availability is therefore a platform capability, not a property of one hypervisor process. A cluster may restart a VM on another host, but the application still needs appropriate redundancy and durable data.
+
+Live migration can reduce planned maintenance interruption when CPU, storage, networking, and device requirements are compatible. It does not protect against every host or regional failure, and it is not a substitute for backups.
+
+## Choosing the right layer
+
+| Option | Best fit | Trade-off |
+| --- | --- | --- |
+| **Type 1 hypervisor** | Server consolidation, cloud infrastructure, production VM fleets | Requires specialized host and platform operations |
+| **Type 2 hypervisor** | Desktop testing, development, isolated labs | Depends on the host OS and may have more overhead |
+| **Container runtime** | Application packaging where a shared kernel is acceptable | Different isolation and compatibility model from a VM |
+| **Bare metal** | Maximum hardware control or predictable specialized performance | Less flexible and requires more direct hardware management |
+
+The right choice depends on control, isolation, performance, portability, skills, and cost. The most powerful layer is not automatically the best operational choice.
+
+## Practical design checklist
+
+1. Which party operates the hypervisor and its management plane?
+2. Are CPU, memory, storage, and network limits understood and monitored?
+3. Do the guest drivers support efficient virtual I/O?
+4. Does the workload require dedicated hardware, passthrough, or bare metal?
+5. What happens to a VM when its host fails or maintenance begins?
+6. Have migration, restart, isolation, patching, and recovery procedures been tested?
+
+## Summary
+
+- A hypervisor creates and controls VMs and mediates their access to physical resources.
+- Type 1 hypervisors run on hardware; type 2 hypervisors run on a host operating system.
+- CPU scheduling, memory translation, device emulation, paravirtualized drivers, and virtual switches implement the VM interface.
+- Hardware assistance improves performance, but contention and I/O paths still create overhead.
+- Hypervisor security, management access, firmware, and VM artifacts require protection.
+- High availability and live migration usually depend on management platforms and compatible infrastructure, not only the hypervisor.
+
+### Check your understanding
+
+1. What is the main difference between a type 1 and type 2 hypervisor?
+2. Why is a vCPU not necessarily a dedicated physical CPU core?
+3. What is the purpose of paravirtualized drivers?
+4. Why can device passthrough limit live migration?
+5. Why does a hypervisor alone not guarantee high availability?
+
+## Further reading
+
+- [Microsoft Hyper-V overview](https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/overview)
+- [Red Hat: What is a hypervisor?](https://www.redhat.com/en/topics/virtualization/what-is-a-hypervisor)

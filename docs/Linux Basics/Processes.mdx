@@ -1,0 +1,365 @@
+---
+sidebar_position: 5
+description: "Understand Linux processes, threads, lifecycle, signals, resource usage, and process troubleshooting."
+---
+
+# 🐧 Processes in Linux
+
+A **process** is a running instance of a program. Linux uses processes and threads as the units of execution, scheduling them on available CPUs and giving them controlled access to memory, files, devices, and networks.
+
+Understanding processes is essential for administration. A service may be configured correctly but have no running process, a process may be alive but blocked on storage, or the kernel may have terminated it because the system ran out of memory.
+
+By the end of this lesson, you should be able to:
+
+- Distinguish programs, processes, threads, daemons, and services
+- Inspect processes with `ps`, `top`, `/proc`, and related tools
+- Explain parent-child relationships, process states, and zombies
+- Send safe signals and shut down processes gracefully
+- Investigate CPU, memory, I/O, and service-supervisor problems
+
+## Program, process, and thread
+
+| Term | Meaning |
+| --- | --- |
+| **Program** | A file containing executable instructions and supporting data |
+| **Process** | A running instance of a program with its own kernel-managed state |
+| **Thread** | An execution flow inside a process; threads normally share the process's memory and files |
+| **Daemon** | A background process that provides a continuing function |
+| **Service** | A managed system function, which may contain one or more processes |
+
+The same program can have many processes:
+
+```text
+Program file: /usr/bin/python3
+       |
+       +-- Process PID 1200: web application
+       +-- Process PID 1201: background worker
+       +-- Process PID 1202: scheduled script
+```
+
+Each process has information such as:
+
+- A process ID (PID) and parent process ID (PPID)
+- One or more threads and a virtual address space
+- Real and effective user and group credentials
+- Open file descriptors, environment variables, and a working directory
+- Signal handlers, scheduling priority, and resource limits
+- Namespace and control-group membership on systems that use them
+
+## How a process starts
+
+On Unix-like systems, a shell or another process commonly creates a child and then starts a program in it:
+
+```text
+Parent process
+      |
+      | fork() or clone()
+      v
+Child process
+      |
+      | execve()
+      v
+New program image
+```
+
+The exact kernel interface can vary. The important distinction is that `exec` replaces the current process's program image; it does not create a second process. The child can then run, exit with a status code, or create its own children.
+
+The parent can call `wait` to collect the child's exit status. This prevents completed children from remaining as zombies.
+
+## PIDs and process identity
+
+The kernel assigns a PID to each process. A PID is not a permanent identity: Linux can reuse a PID after the original process exits. Scripts should avoid assuming that a previously observed PID still refers to the same program.
+
+Inspect the current shell and its identity:
+
+```bash
+printf 'Shell PID: %s\n' "$$"
+ps -p "$$" -o pid,ppid,user,group,stat,comm,args
+id
+```
+
+The process identity matters for security. A process's UID, GIDs, capabilities, and security policy determine which files and resources it can access. A service may run under a different user from the administrator who started it.
+
+The `/proc` pseudo-filesystem exposes information about running processes. Replace `PID` with an actual process ID:
+
+```bash
+cat /proc/PID/status
+readlink /proc/PID/cwd
+tr '\0' ' ' < /proc/PID/cmdline; printf '\n'
+ls -l /proc/PID/fd
+cat /proc/PID/cgroup
+```
+
+Some entries contain credentials, command arguments, environment data, or sensitive file paths. Treat process inspection output as potentially sensitive.
+
+## Listing processes
+
+`ps` gives a snapshot:
+
+```bash
+ps -ef
+ps -eo pid,ppid,user,stat,pcpu,pmem,etime,comm,args --sort=-%cpu
+```
+
+Common columns include:
+
+| Column | Meaning |
+| --- | --- |
+| `PID` | Process ID |
+| `PPID` | Parent process ID |
+| `UID` or `USER` | Account associated with the process |
+| `STAT` | Process state and additional flags |
+| `%CPU` | Recent CPU usage as reported by `ps` |
+| `%MEM` | Approximate physical-memory share |
+| `CMD` or `COMMAND` | Executable and, depending on format, arguments |
+
+Other useful tools are:
+
+```bash
+pgrep -af nginx
+pstree -p
+top
+```
+
+`pgrep` finds processes by attributes such as name. `pstree` shows parent-child relationships. `top` provides a continuously updating view. `htop` is a useful interactive alternative when installed, but it is not part of every minimal distribution.
+
+Do not identify a process by name alone when taking action. Confirm its PID, owner, command line, parent, and service before sending a signal.
+
+## Process states
+
+The first character in the `STAT` field commonly represents a process state:
+
+| State | Meaning |
+| --- | --- |
+| `R` | Running or ready to run on a CPU |
+| `S` | Interruptible sleep, usually waiting for an event |
+| `D` | Uninterruptible sleep, commonly waiting for kernel I/O |
+| `T` | Stopped by job control or a signal |
+| `Z` | Zombie: exited but not yet reaped by its parent |
+| `I` | Idle kernel thread on systems that report this state |
+
+A process in `S` may be healthy; sleeping is normal when it is waiting for network input or a timer. A process in `D` may indicate slow or failed storage, a network filesystem problem, or another kernel wait. Signals may not take effect until the uninterruptible operation returns.
+
+A **zombie** has finished executing and uses no CPU, but its parent has not collected its exit status. The zombie cannot be fixed by sending it another termination signal. Find and correct the parent or supervisor that is failing to reap children. A large number of zombies can exhaust the process table.
+
+## Parent, child, orphan, and zombie
+
+The normal lifecycle looks like this:
+
+```text
+Parent creates child
+        |
+        v
+Child runs and eventually exits
+        |
+        v
+Parent waits and collects status
+```
+
+If a parent exits while its child is still running, the child becomes an **orphan**. Linux adopts it through the appropriate init process or subreaper so it can eventually be reaped. An orphan is not automatically a problem; a zombie is a completed child whose status remains uncollected.
+
+Killing a parent does not automatically kill every descendant. Processes can belong to process groups, sessions, cgroups, or service units. Use the correct supervisor or group-level operation when stopping a workload instead of guessing from one PID.
+
+## Signals and graceful shutdown
+
+A signal is an asynchronous notification delivered to a process or process group. View available signal names with:
+
+```bash
+kill -l
+```
+
+Important signals include:
+
+| Signal | Typical meaning |
+| --- | --- |
+| `SIGINT` | Interactive interrupt, commonly produced by `Ctrl+C` |
+| `SIGTERM` | Request graceful termination |
+| `SIGHUP` | Terminal hangup; many daemons use it to reload configuration |
+| `SIGSTOP` | Stop execution; cannot be caught or ignored |
+| `SIGCONT` | Continue a stopped process |
+| `SIGKILL` | Force termination; cannot be caught, blocked, or ignored |
+| `SIGCHLD` | Indicates a child changed state, often because it exited |
+
+To request a graceful shutdown:
+
+```bash
+kill -TERM PID
+```
+
+An application may catch `SIGTERM`, stop accepting new work, finish safe work, close files, flush data, and exit. The signal is a request, not proof that the process has already stopped. Verify the result:
+
+```bash
+ps -p PID -o pid,stat,comm,args
+```
+
+Use `SIGKILL` only when a process will not exit or is causing immediate harm:
+
+```bash
+kill -KILL PID
+```
+
+`SIGKILL` prevents application cleanup and can leave locks, partial files, interrupted transactions, or child processes. It also does not reliably remove a process stuck in `D` state.
+
+Sending a signal normally requires that the sender owns the process or has an appropriate privilege such as `CAP_KILL`. Never send signals to an unfamiliar PID, especially PID `1`.
+
+## Foreground, background, and job control
+
+An interactive shell normally waits for a foreground command. Add `&` to start a command in the background:
+
+```bash
+sleep 60 &
+jobs
+```
+
+Useful job-control actions include:
+
+- `Ctrl+C`: usually sends `SIGINT` to the foreground process group.
+- `Ctrl+Z`: usually stops the foreground job.
+- `bg`: resumes a stopped job in the background.
+- `fg`: brings a job to the foreground.
+- `jobs`: lists jobs known to the current shell.
+
+Shell job control is tied to a terminal. A background process may still depend on that terminal for input or may receive `SIGHUP` when the session closes. For long-running workloads, use a service manager, a controlled supervisor, or a tool such as `tmux` rather than relying only on `nohup`.
+
+## CPU, memory, and I/O
+
+High CPU is not the only reason a process can be slow:
+
+- A CPU-bound process has runnable work and needs more CPU time.
+- A process waiting for disk or network I/O may use little CPU but remain blocked.
+- A memory-constrained process may reclaim pages, swap, or be terminated by the kernel's OOM killer.
+- A process may be waiting for a lock, another service, a database connection, or a rate limit.
+
+Inspect system-level pressure with:
+
+```bash
+uptime
+free -h
+vmstat 1
+```
+
+The load average includes runnable work and, on Linux, tasks in uninterruptible sleep. Compare it with the number of available CPUs and inspect whether the work is CPU-bound or I/O-bound.
+
+### Process priority
+
+The `nice` value influences CPU scheduling priority for normal tasks:
+
+```bash
+nice -n 10 long-running-command
+renice 10 -p PID
+```
+
+Nice values do not provide a hard CPU limit and do not solve memory or I/O contention. Control groups, service-manager resource settings, containers, or workload-specific limits are better tools for enforceable resource boundaries.
+
+### Memory measurements
+
+`RSS` is the approximate amount of a process's memory currently resident in RAM. `VSZ` is its virtual address-space size and is not equivalent to physical memory consumption. Shared libraries and shared pages complicate both measurements.
+
+Inspect a process's memory fields:
+
+```bash
+ps -p PID -o pid,stat,rss,vsz,%mem,comm
+grep -E 'Vm(Size|RSS|Swap)' /proc/PID/status
+```
+
+Use the kernel's memory and cgroup information when diagnosing an OOM event. A process can be killed by a container or service cgroup even when the host still has free memory.
+
+## Services and process supervisors
+
+On many distributions, `systemd` starts and supervises services. A service unit can define the command, user, environment, dependencies, restart policy, resource limits, and shutdown timeout.
+
+Read-only inspection commands include:
+
+```bash
+systemctl status example.service
+journalctl -u example.service --since "15 minutes ago"
+systemctl show example.service -p MainPID -p SubState -p User
+```
+
+The exact service manager may be `systemd`, OpenRC, runit, or another tool. A process started manually in a shell is not automatically a managed service.
+
+When a managed service stops, the supervisor may first send `SIGTERM` and later send `SIGKILL` after its stop timeout. This is why applications should handle graceful termination and why service logs should be checked before repeatedly killing the process.
+
+## Containers and process namespaces
+
+A container is still made of Linux processes. A PID namespace gives those processes a different view of PIDs; a process can appear to be PID `1` inside a container while having another PID on the host.
+
+Control groups, or **cgroups**, organize processes and account for or limit CPU, memory, process count, and sometimes I/O. Namespaces change visibility; cgroups control or measure resource use. Together with capabilities, filesystem isolation, and security policies, they form common container primitives.
+
+Do not assume that the PID shown inside a container can be used directly on the host, or that killing a container's process is equivalent to safely stopping the entire workload. Use the container or service supervisor when possible.
+
+## A process troubleshooting workflow
+
+When an application appears stuck or unhealthy:
+
+1. Find the process with `pgrep -af name` or inspect the service with `systemctl status`.
+2. Confirm the PID, parent, owner, command line, and state with `ps`.
+3. Check CPU, RSS, load, I/O waits, open files, and network sockets.
+4. Inspect application and service-manager logs.
+5. Check dependencies such as storage, DNS, databases, queues, and external APIs.
+6. Send `SIGTERM` through the supervisor or directly to the confirmed process.
+7. Verify exit, restart, data consistency, and whether the supervisor recreated it.
+8. Use `SIGKILL` only after understanding the cleanup and recovery consequences.
+
+Useful commands include:
+
+```bash
+ps -p PID -o pid,ppid,user,group,stat,pcpu,pmem,etime,comm,args
+ls -l /proc/PID/fd
+ss -ltnp
+journalctl -u example.service --since "15 minutes ago"
+```
+
+If a process repeatedly returns after being killed, a supervisor, timer, container platform, or another parent may be restarting it. Find the owner of the lifecycle rather than treating each new PID as a separate mystery.
+
+## Safe process lab
+
+This lab creates a temporary process and stops it gracefully:
+
+```bash
+sleep 30 &
+pid="$!"
+ps -p "$pid" -o pid,ppid,stat,comm,args
+kill -TERM "$pid"
+wait "$pid"
+printf 'Exit status: %s\n' "$?"
+```
+
+`$!` contains the most recent background process ID. `wait` lets the shell collect its exit status, preventing the child from being left unreaped by that shell.
+
+## Practical design checklist
+
+1. Which user, groups, capabilities, namespaces, and cgroups does the process run with?
+2. Who owns its lifecycle: a shell, `systemd`, a container runtime, or another supervisor?
+3. What are its normal CPU, memory, I/O, and network patterns?
+4. Which signals does it handle for reload, graceful shutdown, and forced termination?
+5. Where are its logs, open files, sockets, configuration, and persistent data?
+6. What happens when the process, host, dependency, or supervisor fails?
+7. Can it be stopped, restarted, and recovered without corrupting data?
+
+## Summary
+
+- A process is a running program with a PID, credentials, memory, files, threads, and kernel-managed state.
+- `ps`, `top`, `pgrep`, `pstree`, and `/proc` provide complementary views of processes.
+- Process states reveal whether work is running, sleeping, stopped, blocked on I/O, or finished but unreaped.
+- `SIGTERM` is the normal graceful-shutdown request; `SIGKILL` is a last resort and prevents cleanup.
+- CPU usage, memory pressure, I/O waits, locks, dependencies, and cgroup limits can all make a process appear unhealthy.
+- Service managers supervise process lifecycles and may restart or eventually terminate processes.
+- Containers change the process view with namespaces and control resources with cgroups; they do not stop being Linux processes.
+
+### Check your understanding
+
+1. What is the difference between a program, a process, and a thread?
+2. Why does `execve()` not create an additional process?
+3. What is a zombie process, and why does sending it `SIGKILL` not solve the problem?
+4. What is the difference between `SIGTERM` and `SIGKILL`?
+5. Why can a process in `D` state be slow while using little CPU?
+6. Why should a managed service usually be stopped through its supervisor?
+7. How can a container process have a different PID inside and outside the container?
+
+## Further reading
+
+- [`ps(1)` Linux manual page](https://man7.org/linux/man-pages/man1/ps.1.html)
+- [`proc(5)` Linux manual page](https://man7.org/linux/man-pages/man5/proc.5.html)
+- [`signal(7)` Linux manual page](https://man7.org/linux/man-pages/man7/signal.7.html)
+- [`systemctl(1)` Linux manual page](https://man7.org/linux/man-pages/man1/systemctl.1.html)

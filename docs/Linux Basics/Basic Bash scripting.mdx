@@ -1,0 +1,588 @@
+---
+sidebar_position: 12
+description: "Write reliable Bash scripts for automation, file management, and Linux administration."
+---
+
+# 🐧 Bash Scripting
+
+Bash is both an interactive shell and a scripting language. A Bash script combines commands, variables, conditions, loops, functions, and exit statuses to automate work on Linux.
+
+Shell scripts are powerful because they can connect existing tools quickly. They are also easy to make unsafe. The most common failures come from unquoted variables, ignored exit statuses, unexpected filenames, incorrect assumptions about the environment, and destructive commands run against the wrong path.
+
+By the end of this lesson, you should be able to:
+
+- Create and execute a Bash script
+- Use variables, arguments, conditions, loops, functions, and arrays
+- Handle exit statuses, pipelines, signals, and temporary files safely
+- Write scripts that tolerate spaces and unusual filenames
+- Test and debug scripts with Bash, ShellCheck, and controlled environments
+
+## A script is a program
+
+A script is a text file containing commands. The **shebang** on its first line tells the operating system which interpreter should run it:
+
+```bash
+#!/usr/bin/env bash
+```
+
+Run a script explicitly with Bash:
+
+```bash
+bash report.sh
+```
+
+Or make it executable and run it as a program:
+
+```bash
+chmod +x report.sh
+./report.sh
+```
+
+`bash report.sh` selects Bash even if the file is not executable. `./report.sh` uses the shebang and requires execute permission.
+
+Use `#!/bin/sh` only when the script is intentionally POSIX shell code. Bash features such as arrays, `[[ ]]`, and `mapfile` are not portable to every `sh` implementation.
+
+## A safe first script
+
+This script validates one input file and reports its line count:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+    printf 'Usage: %s FILE\n' "$0" >&2
+}
+
+die() {
+    printf 'Error: %s\n' "$1" >&2
+    exit 1
+}
+
+if (( $# != 1 )); then
+    usage
+    exit 2
+fi
+
+input=$1
+
+if [[ ! -f "$input" || ! -r "$input" ]]; then
+    die "cannot read regular file: $input"
+fi
+
+lines=$(wc -l < "$input")
+printf 'File: %s\nLines: %s\n' "$input" "$lines"
+```
+
+Save it as `report.sh`, then check and run it:
+
+```bash
+bash -n report.sh
+shellcheck report.sh
+chmod +x report.sh
+./report.sh notes.txt
+```
+
+`bash -n` checks syntax without executing commands. [ShellCheck](https://www.shellcheck.net/) detects many quoting, portability, and robustness problems. The script uses an explicit usage message, validates input, quotes the path, and returns nonzero when it cannot complete its task.
+
+## Commands and exit statuses
+
+Every command returns an exit status. By convention, `0` means success and a nonzero value means failure. The special parameter `$?` contains the status of the most recently completed command:
+
+```bash
+if mkdir -p /tmp/example; then
+    printf 'directory is ready\n'
+else
+    printf 'could not create directory\n' >&2
+    exit 1
+fi
+```
+
+Prefer testing a command directly instead of checking `$?` later. These operators are useful for simple flows:
+
+```bash
+command_a && command_b
+command_a || printf 'command_a failed\n' >&2
+```
+
+Be careful with `||` when failure is expected and with commands that have meaningful nonzero statuses. Treating every nonzero status as fatal can be wrong; ignoring every status is worse.
+
+A pipeline normally returns the status of its last command:
+
+```bash
+generate_report | gzip > report.gz
+```
+
+Without `pipefail`, `gzip` could succeed even if `generate_report` failed. `set -o pipefail` makes the pipeline fail when an earlier command fails, subject to Bash's pipeline status rules.
+
+## Variables and expansion
+
+Assignments have no spaces around `=`:
+
+```bash
+name="Cloudopia"
+count=3
+printf '%s has %s lessons\n' "$name" "$count"
+```
+
+Use arithmetic expansion for calculations:
+
+```bash
+next=$((count + 1))
+```
+
+Use command substitution to capture command output:
+
+```bash
+kernel=$(uname -r)
+printf 'Kernel: %s\n' "$kernel"
+```
+
+Command substitution removes trailing newline characters. Do not use it as a general way to build a list of filenames; use arrays or a NUL-delimited `find` pipeline for that.
+
+Useful parameter expansions include:
+
+```bash
+port="${APP_PORT:-8080}"
+required="${DATABASE_URL:?DATABASE_URL is required}"
+base="${path##*/}"
+length="${#name}"
+```
+
+`${NAME:-default}` uses a default when the variable is unset or empty. `${NAME:?message}` stops when a required value is absent or empty. `${path##*/}` removes the longest prefix ending in `/`, and `${#name}` returns the string length. See the Environment variables lesson for exported values and process inheritance.
+
+Variables are not strongly typed. Validate values before using them as numbers, paths, options, or commands.
+
+## Quoting prevents bugs
+
+Unquoted expansions can undergo word splitting and pathname expansion. A filename containing spaces or `*` can then become multiple arguments or match unintended files.
+
+```bash
+file="Report 2026.txt"
+cat -- "$file"
+```
+
+Use double quotes around variable and command substitutions by default:
+
+```bash
+printf '%s\n' "$file"
+destination="$HOME/archive/$file"
+```
+
+Single quotes prevent expansion completely. Double quotes allow parameter and command expansion while preserving the resulting value as one argument. Use a backslash for a small, specific escape.
+
+Use `--` where supported to tell a command that following values are operands, not options:
+
+```bash
+rm -- "$file"
+```
+
+Quoting does not make an unsafe command safe. Validate paths, use least privilege, and avoid destructive operations until the target is confirmed.
+
+## Script arguments and options
+
+Common positional parameters are:
+
+| Parameter | Meaning |
+| --- | --- |
+| `$0` | Script name or invocation name |
+| `$1`, `$2`, ... | Positional arguments |
+| `$#` | Number of positional arguments |
+| `"$@"` | All arguments, preserving each argument as a separate value |
+| `$?` | Most recent command's exit status |
+| `$$` | Current Bash process ID |
+| `$!` | Most recent background process ID |
+
+When forwarding arguments, use `"$@"`, not unquoted `$@` or `$*`:
+
+```bash
+run_tool() {
+    tool --verbose "$@"
+}
+
+run_tool "file with spaces.txt" "another.txt"
+```
+
+Use `getopts` for short command-line options:
+
+```bash
+verbose=false
+name=''
+
+while getopts ':vn:' option; do
+    case "$option" in
+        v) verbose=true ;;
+        n) name=$OPTARG ;;
+        :) printf 'Option -%s requires a value\n' "$OPTARG" >&2; exit 2 ;;
+        \?) printf 'Unknown option: -%s\n' "$OPTARG" >&2; exit 2 ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+if (( $# == 0 )); then
+    printf 'An input path is required\n' >&2
+    exit 2
+fi
+```
+
+`getopts` handles common short-option patterns. For complex interfaces, document the accepted syntax and validate every remaining argument.
+
+## Conditions and tests
+
+Bash's `[[ ]]` construct is safer and more expressive than the older `[ ]` command for many Bash scripts:
+
+```bash
+if [[ -f "$path" && -r "$path" ]]; then
+    printf 'Readable file\n'
+fi
+
+if [[ "$environment" == 'production' ]]; then
+    printf 'Production mode\n'
+fi
+
+if (( retries >= 3 )); then
+    printf 'Retry limit reached\n' >&2
+fi
+```
+
+Common file tests include:
+
+- `-e`: Path exists
+- `-f`: Regular file
+- `-d`: Directory
+- `-r`: Readable by the current process
+- `-w`: Writable by the current process
+- `-x`: Executable or searchable by the current process
+- `-L`: Symbolic link
+
+Use `[[ -n "$value" ]]` and `[[ -z "$value" ]]` for nonempty and empty strings. Use `(( ))` for integer comparisons rather than comparing numbers as text.
+
+## Conditions, loops, and `case`
+
+Use `if` for decisions:
+
+```bash
+if [[ -d "$directory" ]]; then
+    printf 'Directory exists\n'
+elif [[ -e "$directory" ]]; then
+    printf 'Path exists but is not a directory\n' >&2
+else
+    mkdir -p -- "$directory"
+fi
+```
+
+Use `case` for a finite set of modes:
+
+```bash
+case "$environment" in
+    development|test) log_level=debug ;;
+    production) log_level=info ;;
+    *) printf 'Unsupported environment: %s\n' "$environment" >&2; exit 2 ;;
+esac
+```
+
+Use arrays when iterating over known arguments:
+
+```bash
+files=('notes.txt' 'Report 2026.txt')
+for file in "${files[@]}"; do
+    printf 'Checking: %s\n' "$file"
+done
+```
+
+For lines from a file, preserve whitespace and backslashes:
+
+```bash
+while IFS= read -r line; do
+    printf 'Line: %s\n' "$line"
+done < input.txt
+```
+
+Do not write `for line in $(cat input.txt)`. It splits on whitespace and performs wildcard expansion.
+
+For filenames that may contain newlines, use NUL delimiters:
+
+```bash
+while IFS= read -r -d '' file; do
+    printf 'File: %s\n' "$file"
+done < <(find "$root" -type f -print0)
+```
+
+The process-substitution form avoids putting the loop in a pipeline subshell, which matters when the loop must update a variable in the current shell.
+
+## Functions
+
+Functions make repeated behavior and error handling easier to test:
+
+```bash
+log() {
+    printf '[%s] %s\n' "$(date -u +%FT%TZ)" "$*" >&2
+}
+
+require_command() {
+    command -v "$1" >/dev/null 2>&1 || {
+        printf 'Required command is missing: %s\n' "$1" >&2
+        return 1
+    }
+}
+
+main() {
+    require_command curl
+    log 'Starting task'
+}
+
+main "$@"
+```
+
+Use `local` for function variables so they do not accidentally overwrite global state:
+
+```bash
+describe_file() {
+    local path=$1
+    stat -- "$path"
+}
+```
+
+A function returns a status with `return`; it can also print data that the caller captures:
+
+```bash
+get_kernel() {
+    uname -r
+}
+
+kernel=$(get_kernel)
+```
+
+Do not use output text as a substitute for an exit status. A command can print a message and still fail.
+
+## Temporary files and cleanup
+
+Use `mktemp` to create unpredictable temporary paths. Do not invent names under `/tmp` using a process ID or timestamp alone.
+
+```bash
+tmpdir=$(mktemp -d)
+
+cleanup() {
+    rm -rf -- "$tmpdir"
+}
+
+trap cleanup EXIT
+
+printf 'temporary work\n' > "$tmpdir/result.txt"
+```
+
+The `EXIT` trap runs when the script exits normally or because of an unhandled error. The path comes from `mktemp`, so it is known to be the directory created by this script. Never use `rm -rf -- "$variable"` unless the variable has been deliberately validated and the deletion is required.
+
+For important files, write to a temporary file and rename it after success:
+
+```bash
+temporary=$(mktemp)
+if generate_config > "$temporary"; then
+    mv -- "$temporary" /etc/example/config.yml
+else
+    rm -f -- "$temporary"
+    exit 1
+fi
+```
+
+A rename within the same filesystem is generally atomic, but it does not by itself guarantee that data has reached stable storage. Use application- and filesystem-specific durability procedures for critical data.
+
+## Traps and signals
+
+Scripts may receive signals such as `SIGINT` from `Ctrl+C` or `SIGTERM` from a service manager. Use traps to clean up or stop safely:
+
+```bash
+on_term() {
+    printf 'Stopping safely\n' >&2
+    exit 143
+}
+
+trap on_term INT TERM
+```
+
+Keep cleanup idempotent: it should be safe if it runs once, more than once, or after only part of the work completed. Do not hide the original error with a trap that always exits successfully.
+
+## `set -euo pipefail`
+
+Many Bash scripts begin with:
+
+```bash
+set -euo pipefail
+```
+
+These options mean:
+
+- `-e` exits when a command fails in contexts where Bash treats the failure as unhandled.
+- `-u` treats an unset variable expansion as an error.
+- `pipefail` makes a pipeline report failure from an unsuccessful component instead of only its last command.
+
+`set -e` has exceptions around conditions, `while` tests, `&&`, `||`, and some pipeline contexts. It is useful but not a complete error-handling strategy. Write explicit checks for operations whose failure is expected or needs a custom response:
+
+```bash
+if output=$(optional-command); then
+    printf '%s\n' "$output"
+else
+    printf 'optional-command was unavailable; using fallback\n' >&2
+fi
+```
+
+With `-u`, use `${value:-}` or a required-value check when an unset variable is valid. Test scripts with both normal and failure inputs.
+
+## Arrays and command construction
+
+Do not build a command as a string and pass it to `eval`. Use an array when options or arguments are dynamic:
+
+```bash
+options=(--color=auto --line-number)
+
+if [[ "$verbose" == true ]]; then
+    options+=(--with-filename)
+fi
+
+grep "${options[@]}" -- "$pattern" "$file"
+```
+
+Each array element remains a separate argument, including values containing spaces. `eval` reparses text as shell code and can turn untrusted data into command execution.
+
+## Background work and waiting
+
+Start a background process with `&`, save its PID immediately, and call `wait`:
+
+```bash
+long_task &
+pid=$!
+
+if wait "$pid"; then
+    printf 'Task succeeded\n'
+else
+    printf 'Task failed\n' >&2
+    exit 1
+fi
+```
+
+Without `wait`, a script may finish before its child has completed or may fail to collect the child's status. Use a bounded number of workers and handle partial failures; starting thousands of background commands can exhaust CPU, memory, file descriptors, or downstream service capacity.
+
+## Idempotence and dry runs
+
+An **idempotent** script can be run more than once and leaves the desired state rather than duplicating or damaging work. For example, `mkdir -p` is normally safer for a desired directory than blindly running `mkdir` and treating "already exists" as an outage.
+
+For administrative scripts:
+
+- Check current state before changing it.
+- Separate discovery from mutation.
+- Provide a dry-run mode for destructive or broad changes.
+- Log what changed and why.
+- Use locks when concurrent runs could conflict.
+- Return a failure status when the desired state was not reached.
+
+Avoid assuming that a successful command means the whole task succeeded. Verify ownership, permissions, service health, file contents, or other postconditions.
+
+## Security and untrusted input
+
+Treat arguments, filenames, environment variables, downloaded content, and command output as untrusted until validated:
+
+- Quote expansions and use `"$@"`.
+- Prefer allowlists for modes, names, and options.
+- Avoid `eval` and shell interpretation of data.
+- Use `--` and absolute paths where appropriate.
+- Do not source files unless their authorship and contents are trusted.
+- Do not place secrets in command arguments or debug output.
+- Use a controlled `PATH` and absolute command paths in privileged scripts.
+- Run with the minimum required privilege; do not make an entire script root-owned by default.
+- Protect temporary files and output directories from other users.
+
+If a script uses `sudo`, keep the privileged portion narrow and validate the inputs before crossing the privilege boundary.
+
+## Debugging and testing
+
+Useful checks include:
+
+```bash
+bash -n script.sh
+shellcheck -s bash script.sh
+bash -x script.sh argument
+```
+
+`bash -x` prints commands as Bash expands and executes them. Do not use tracing while secrets are present or redirect trace output to an insecure location. Add temporary diagnostics with `printf` to standard error:
+
+```bash
+printf 'path=<%q> user=<%s>\n' "$path" "$USER" >&2
+```
+
+Test with:
+
+- Missing arguments and unknown options
+- Paths containing spaces, quotes, glob characters, and newlines
+- Empty and unset environment variables
+- Missing commands and inaccessible files
+- Partial failure in a pipeline or background task
+- Repeated execution after a successful run
+- A restricted service or noninteractive environment
+
+Scripts launched by cron, `systemd`, SSH, or a CI runner may have a different `PATH`, working directory, environment, shell, and user from your terminal. Make those dependencies explicit.
+
+## Safe practice lab
+
+This lab uses a temporary directory and cleans it when the shell exits:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+workdir=$(mktemp -d)
+cleanup() { rm -rf -- "$workdir"; }
+trap cleanup EXIT
+
+printf '%s\n' 'first line' 'line with spaces' > "$workdir/input.txt"
+
+count=0
+while IFS= read -r line; do
+    printf 'read: %s\n' "$line"
+    count=$((count + 1))
+done < "$workdir/input.txt"
+
+printf 'Read %s lines\n' "$count"
+```
+
+Run it with `bash lab.sh`. Observe that `count` is available after the loop because the loop reads from a file rather than running in a pipeline subshell.
+
+## Practical design checklist
+
+1. Is the interpreter declared correctly, and is Bash required rather than `sh`?
+2. Are arguments, variables, command substitutions, and filenames quoted?
+3. Does every important command have an intentional exit-status response?
+4. Are pipelines protected by `pipefail` or checked another way?
+5. Are temporary files unpredictable, private, and cleaned up on failure?
+6. Can the script be run twice without corrupting state or duplicating work?
+7. Does it behave correctly without an interactive shell or inherited `.bashrc`?
+8. Has it been checked with `bash -n`, ShellCheck, normal inputs, and failure inputs?
+
+## Summary
+
+- Bash scripts automate commands but require careful handling of expansion, exit statuses, and input.
+- Use a shebang, quote expansions, validate arguments, and return meaningful nonzero statuses on failure.
+- `"$@"`, arrays, `[[ ]]`, and NUL-delimited file processing avoid common whitespace and globbing bugs.
+- `set -euo pipefail` improves error detection but does not replace explicit error handling.
+- Use `mktemp`, traps, atomic writes, and idempotent operations for safer filesystem automation.
+- Avoid `eval`, untrusted `source`, unsafe `PATH` values, leaked secrets, and broad privilege.
+- Test scripts in noninteractive and failure scenarios with `bash -n`, ShellCheck, and tracing that does not expose secrets.
+- Cron, SSH, `systemd`, containers, and CI jobs may provide a different environment from an interactive terminal.
+
+### Check your understanding
+
+1. What is the purpose of a script's shebang?
+2. Why should a variable such as `"$file"` be quoted?
+3. What is the difference between `"$@"` and `$*` when forwarding arguments?
+4. Why can a pipeline hide an earlier command's failure without `pipefail`?
+5. Why is `mktemp` safer than constructing a temporary filename from a timestamp?
+6. Why should dynamic command arguments be stored in an array instead of a string passed to `eval`?
+7. What does `wait` do for a background process?
+8. Why might a script work in a terminal but fail under `systemd` or cron?
+
+## Further reading
+
+- [GNU Bash Reference Manual](https://www.gnu.org/software/bash/manual/bash.html)
+- [`bash(1)` Linux manual page](https://man7.org/linux/man-pages/man1/bash.1.html)
+- [ShellCheck](https://www.shellcheck.net/)
+- [ShellCheck: Quote to prevent word splitting](https://www.shellcheck.net/wiki/SC2086)
+- [ShellCheck: Use `"$@"` for arguments](https://www.shellcheck.net/wiki/SC2048)

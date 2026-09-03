@@ -1,0 +1,142 @@
+---
+sidebar_position: 3
+description: "Learn how cloud data centers provide computing resources and isolate physical failures."
+---
+
+# Data centers
+
+A data center is a secured facility that houses servers, storage systems, network equipment, power systems, and cooling systems. Cloud providers operate many data centers and expose their capacity as services that you can provision through a console, API, command-line tool, or infrastructure-as-code file.
+
+The cloud is an abstraction over this physical infrastructure. When you create a virtual machine or database, it still runs on real hardware in a real location.
+
+By the end of this lesson, you should be able to:
+
+- Identify the main systems inside a data center
+- Explain how providers isolate physical failures
+- Distinguish a data center, availability zone, and region
+- Connect physical design decisions to availability, latency, cost, and sustainability
+
+## What is inside a data center?
+
+| System | Purpose |
+| --- | --- |
+| **Power** | Supplies electricity through utility feeds, uninterruptible power supplies (UPSs), batteries, and generators |
+| **Cooling** | Removes heat from servers and keeps equipment within safe operating limits |
+| **Networking** | Connects racks to each other, to other facilities, and to the internet |
+| **Compute** | Provides CPU and memory through physical servers |
+| **Storage** | Stores data on solid-state drives, hard disks, or specialized storage systems |
+| **Physical security** | Controls entry, monitors the facility, and protects equipment from unauthorized access |
+| **Operations** | Handles maintenance, inventory, monitoring, repairs, and incident response |
+
+A simplified view looks like this:
+
+```text
+Utility power -> UPS and generators -> Racks of servers and storage
+                                              |
+Network carriers -> Routers and switches -+
+                                              |
+                         Cooling, fire protection, and physical security
+```
+
+The exact design varies by provider and facility. A professional should ask which protections are included in a particular service instead of assuming that every data center has identical capabilities.
+
+## From hardware to a cloud service
+
+Cloud providers add layers of software and isolation over the facility:
+
+```text
+Data center: power, cooling, networks, and physical equipment
+                            |
+              Hosts and virtualization layer
+                            |
+       Virtual machines, containers, and managed services
+                            |
+                    Your application and data
+```
+
+The provider places workloads on physical hosts, monitors those hosts, and replaces failed components. Virtualization allows multiple customers to share hardware while keeping their resources logically isolated. Managed services hide even more of the operating system and hardware from you.
+
+This abstraction gives you speed and flexibility, but it does not make resources unlimited. Hardware capacity, power, network bandwidth, quotas, and maintenance windows still exist.
+
+## Failure domains
+
+A **failure domain** is a set of resources that may be affected by the same failure. Good architectures place redundant components in different failure domains.
+
+| Failure domain | Example failure | Useful design response |
+| --- | --- | --- |
+| **Rack** | A failed power unit or top-of-rack switch | Spread instances or replicas across racks |
+| **Room or building** | Cooling, power, fire, or network failure | Use separate buildings or an availability zone |
+| **Availability zone** | A larger facility or power/network event | Run critical components across multiple zones |
+| **Region** | A widespread outage, disaster, or connectivity problem | Use another region when the recovery requirement justifies the cost and complexity |
+
+An availability zone is a provider-defined isolation boundary. It may contain one data center or multiple closely located facilities. Do not assume that two zones have a particular distance or design; check the provider's documentation.
+
+Redundancy is useful only when the failure domains are genuinely independent and the application can fail over. Two servers in the same rack are not equivalent to two servers in separate zones.
+
+## Resilient facility design
+
+Data-center equipment is often described using an **N** model:
+
+- **N** means exactly enough capacity to meet the workload's requirement.
+- **N+1** means one additional component can fail without removing required capacity.
+- **2N** means two independent systems can each provide the full required capacity.
+
+These patterns can apply to power, cooling, network links, or other systems. More redundancy usually improves resilience, but it also increases construction, operational, and energy costs. Redundancy must include the paths between systems; a redundant generator is less helpful if both systems depend on one unprotected switch.
+
+Providers also use maintenance procedures, spare parts, monitoring, and automated workload movement. These reduce risk but cannot eliminate every failure. Your design still needs backups, health checks, and a tested recovery plan.
+
+## Security and responsibility
+
+The provider normally protects:
+
+- Facility access and surveillance
+- Power, cooling, and fire protection
+- Physical servers, disks, and network equipment
+- The host operating systems and virtualization layer
+
+The customer normally protects:
+
+- Identities and access permissions
+- Application code and operating systems that the customer manages
+- Data, encryption keys, and retention rules
+- Network configuration, backups, monitoring, and recovery choices
+
+Provider certifications can show that defined facility controls were assessed. They do not prove that your workload is correctly configured or that your recovery plan works.
+
+## Location, cost, and sustainability
+
+Data-center location affects several design decisions:
+
+- A location nearer to users can reduce network latency.
+- A location may be required by data-residency or regulatory rules.
+- Moving data between locations can introduce transfer charges.
+- More zones or regions improve failure isolation but add cost and operational complexity.
+
+Providers also measure facility efficiency. **Power Usage Effectiveness (PUE)** is the ratio of total facility energy to the energy used by IT equipment. A lower PUE generally indicates a more efficient facility, but PUE does not describe the full environmental impact of a workload. The amount of compute, storage, and network traffic you consume matters too.
+
+## Practical design checklist
+
+When choosing where a workload should run, ask:
+
+1. Which region and zones satisfy latency, legal, and recovery requirements?
+2. Which components are single points of failure?
+3. Are replicas and dependencies spread across independent failure domains?
+4. Where are backups stored, and can they survive a production-account problem?
+5. What does the provider manage, and what must the customer configure and test?
+
+## Summary
+
+- A data center combines physical facilities, hardware, networks, and operations.
+- Cloud services are software abstractions over physical infrastructure.
+- Failure domains range from racks to entire regions; redundancy should cross the domain that matters.
+- N+1 and 2N describe increasing levels of facility redundancy, with corresponding cost trade-offs.
+- Data-center location affects latency, compliance, transfer cost, recovery, and sustainability.
+- Provider-managed facilities do not remove customer responsibility for workload security or recovery.
+
+### Check your understanding
+
+1. Why does a cloud virtual machine still depend on a physical data center?
+2. What is a failure domain, and why should replicas be placed in different ones?
+3. How is an availability zone different from an individual server rack?
+4. What does N+1 redundancy provide?
+5. Name two customer responsibilities that remain after a provider secures the facility.

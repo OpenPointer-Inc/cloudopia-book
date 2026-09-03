@@ -1,0 +1,211 @@
+---
+sidebar_position: 17
+description: "Learn how to connect cloud spending with business value, total cost, and continuous FinOps practices."
+---
+
+# Cloud economics
+
+**Cloud economics** is the discipline of understanding how cloud costs, business value, risk, and engineering decisions affect one another. It is not simply the practice of finding the smallest invoice. A cost-effective workload meets its functional, performance, security, and reliability requirements while producing valuable business outcomes.
+
+The cloud changes the economics of infrastructure by making capacity programmable and usage measurable. That flexibility can reduce waste and speed up delivery, but it can also make spending grow quickly when resources, data transfer, or managed services are not controlled.
+
+By the end of this lesson, you should be able to:
+
+- Compare cloud cost with total cost of ownership (TCO)
+- Explain common cloud pricing and commitment models
+- Connect spending to business units through unit economics
+- Apply the FinOps cycle of Inform, Optimize, and Operate
+- Balance cost with performance, security, availability, and delivery speed
+
+## Cost is more than the cloud bill
+
+The provider invoice is important, but it is only one part of the economic picture:
+
+| Cost or value area | Examples |
+| --- | --- |
+| **Cloud consumption** | Compute time, storage, requests, databases, managed features, and network transfer |
+| **People and operations** | Design, development, patching, monitoring, support, incident response, and training |
+| **Migration and change** | Discovery, data movement, dual-running systems, refactoring, and migration tools |
+| **Risk and resilience** | Backups, multiple zones or regions, security controls, compliance, downtime, and data loss |
+| **Business value** | Revenue, completed orders, customers served, faster delivery, or reduced manual work |
+
+**Total cost of ownership (TCO)** includes the direct and indirect costs of delivering and operating a workload. A cloud design with a lower service bill can still have a higher TCO if it requires more staff time, causes more outages, or slows product delivery.
+
+Measure **unit economics** to connect cost to output:
+
+```text
+Unit cost = total workload cost / business output
+```
+
+Useful units might be cost per request, order, customer, transaction, image processed, report generated, or gigabyte stored. Total spending may increase as a product grows while cost per order decreases. That can represent healthy scaling rather than waste.
+
+## Cloud pricing models
+
+Cloud services expose different meters and purchasing options:
+
+| Model | How it works | Main consideration |
+| --- | --- | --- |
+| **On-demand** | Pay for resources as they are used, without a long commitment | Flexible, but usually a higher unit price |
+| **Commitment** | Promise to use a resource or spend level for a period in exchange for a discount | Savings disappear or decrease if usage falls below the commitment |
+| **Spot or preemptible** | Use spare provider capacity at a lower price | Capacity can be reclaimed, so workloads must tolerate interruption |
+| **Subscription or per-user** | Pay for access, features, or a number of users | Unused licenses or features still create cost |
+| **Usage-based managed service** | Pay for requests, operations, data, or execution time | A small per-unit price can become large at high volume |
+
+The billing meter matters. A service may charge for vCPU time, memory, storage capacity, storage operations, database capacity, API calls, data transfer, logs, or support. Estimate the full request path rather than comparing only the headline price of one resource.
+
+Cloud spending is often described as moving capital expenditure (CapEx) toward operating expenditure (OpEx), because customers commonly pay as they consume services instead of purchasing hardware. The accounting treatment depends on the contract and organization; the important engineering lesson is that cloud converts more infrastructure decisions into ongoing, measurable operating decisions.
+
+## Compare total cost of ownership
+
+When comparing on-premises and cloud, include the complete lifecycle:
+
+| On-premises cost | Cloud cost or equivalent |
+| --- | --- |
+| Servers, storage, network equipment, and depreciation | Compute, storage, network, and managed-service charges |
+| Data-center space, power, cooling, and physical security | Provider usage and service charges, plus connectivity |
+| Hardware maintenance, warranties, and replacement | Provider support, commitments, and customer operations |
+| Staff for infrastructure and platform operations | Staff for architecture, configuration, security, and service management |
+| Spare capacity for growth and failures | Elastic capacity, minimum instances, replicas, and backups |
+| Disaster-recovery site and exercises | Cross-zone or cross-region resources and recovery testing |
+| Software licenses and support | License charges, marketplace products, and SaaS subscriptions |
+
+Cloud does not guarantee lower TCO. It can be economically attractive when demand is variable, speed matters, or managed services replace expensive operational work. Stable, predictable workloads may also be economical in owned or committed infrastructure. Measure both scenarios over a realistic period, including growth and failure requirements.
+
+## FinOps: managing value continuously
+
+**FinOps** is a collaborative operating practice involving engineering, finance, product, and business teams. It creates accountability for technology spending and helps teams make timely decisions using cost, usage, efficiency, and business data.
+
+The FinOps Foundation describes an iterative cycle:
+
+| Phase | Main question | Typical activities |
+| --- | --- | --- |
+| **Inform** | What are we spending, using, and producing? | Allocate costs, report usage, forecast spend, and measure unit costs |
+| **Optimize** | What can create more value for the same or lower cost? | Rightsize resources, remove waste, improve architecture, and choose suitable rates |
+| **Operate** | How do we make the improvements part of normal work? | Set ownership, budgets, guardrails, targets, reviews, and automated actions |
+
+The cycle repeats because usage patterns, prices, architectures, business priorities, and provider services change. FinOps is not only a finance team's responsibility and it is not synonymous with cutting costs. It is a way to make cost and value visible to the people who can change the technology.
+
+## Make spending visible and accountable
+
+Useful financial controls include:
+
+- Separate accounts, projects, subscriptions, or environments for ownership and isolation.
+- Apply consistent tags or labels for application, team, environment, owner, and cost center.
+- Allocate shared platform, security, network, and support costs using a documented method.
+- Provide showback reports so teams can see their usage; use chargeback when the organization requires internal billing.
+- Create budgets, forecasts, and anomaly alerts for each workload and environment.
+- Review commitment utilization and idle or unattached resources.
+- Require an owner and an expiration date for temporary resources.
+
+Budget alerts usually notify people; they do not necessarily stop resources from running. Use quotas, policy, access controls, deployment checks, and automated cleanup as guardrails, but leave enough capacity for legitimate demand and recovery.
+
+Cost allocation is most useful when it is available before a resource is created. Infrastructure as code, required metadata, approved templates, and policy checks make cost ownership more reliable than trying to reconstruct it from an invoice later.
+
+## Optimize usage and rates
+
+FinOps separates two related optimization questions:
+
+### Usage optimization
+
+Use fewer resources or use them more efficiently:
+
+- Right-size compute and database resources using utilization and performance data.
+- Autoscale or schedule non-production resources when demand changes.
+- Delete idle resources, unattached disks, old snapshots, and unnecessary public IPs.
+- Use storage tiers, lifecycle policies, compression, retention limits, and appropriate log sampling.
+- Cache or batch work when it reduces repeated computation and data transfer.
+- Choose a managed service when its lower operational burden outweighs its per-unit premium.
+
+### Rate optimization
+
+Pay a better price for resources that the workload genuinely needs:
+
+- Use commitments for a stable baseline that is likely to remain in use.
+- Use spot or preemptible capacity for retryable, checkpointed, or interruptible work.
+- Compare regions, machine families, licenses, support plans, and service tiers.
+- Consolidate or remove overlapping tools and unused subscriptions.
+- Review provider pricing changes and renegotiate contracts when appropriate.
+
+Discounts are not savings if the organization pays for capacity it does not use. Usage and rate choices should be evaluated together.
+
+## Cost has trade-offs
+
+Reducing the bill can damage the workload if requirements are ignored:
+
+| Decision | Possible saving | Risk or trade-off |
+| --- | --- | --- |
+| Remove a replica or availability zone | Lower compute and transfer cost | Lower availability and slower recovery |
+| Reduce instance size or maximum scaling | Lower capacity cost | Higher latency, errors, or failed demand |
+| Keep fewer backups or shorter retention | Lower storage cost | More data loss after deletion or corruption |
+| Collect fewer logs or metrics | Lower observability cost | Slower detection and weaker incident evidence |
+| Choose a specialized provider service | Lower build and operating effort | More vendor dependence or migration work |
+| Move data to a cheaper region or tier | Lower storage or compute rate | Higher latency, transfer cost, or compliance risk |
+
+Cost optimization should never silently violate an SLO, RTO, RPO, security control, or legal requirement. Record the requirement, the expected benefit, and the risk before making a change.
+
+## A cost-aware architecture example
+
+Suppose a service creates thumbnails from uploaded images:
+
+```text
+Upload API -> Queue -> Thumbnail workers -> Object storage -> CDN
+                         |
+                    Cost and usage metrics
+```
+
+The API stays responsive while a queue absorbs bursts. Workers can scale with queue depth, use on-demand capacity for required throughput, and use interruptible capacity for retryable overflow work. Old source images and thumbnails can move to lower-cost storage according to retention rules. A CDN can reduce repeated origin traffic, but its request and transfer charges must be included.
+
+The team should measure cost per image, processing latency, failure rate, storage growth, queue delay, and recovery behavior. A cheaper design is successful only if it continues to meet the service's requirements.
+
+## A continuous optimization workflow
+
+```text
+Inform -> Optimize -> Operate -> Measure results -> Inform again
+```
+
+Use this workflow:
+
+1. Build a cost model and establish a baseline for usage, spend, and business output.
+2. Identify the largest cost drivers, idle resources, utilization gaps, and unexpected trends.
+3. Propose changes with estimated savings, implementation effort, and reliability or security impact.
+4. Test changes in a controlled environment and record the assumptions.
+5. Deploy with ownership, guardrails, and a rollback plan.
+6. Verify the invoice, performance, availability, unit cost, and business outcome after the change.
+7. Update the model and repeat as the workload evolves.
+
+## Practical design checklist
+
+1. What business outcome does this workload deliver, and what is its unit cost?
+2. What are the full TCO components beyond the provider invoice?
+3. Which team owns the workload and can act on its spending?
+4. Which pricing meters, data-transfer paths, commitments, and minimum charges apply?
+5. Which resources are idle, oversized, underutilized, or incorrectly retained?
+6. Would a proposed saving affect performance, availability, security, recovery, or compliance?
+7. How will the organization measure whether the change created more value?
+
+## Summary
+
+- Cloud economics connects technology spending to business value, risk, and delivery speed.
+- TCO includes cloud usage, people, operations, migration, resilience, licensing, and the cost of failure.
+- Unit economics measures cost against meaningful output such as requests, orders, customers, or jobs.
+- FinOps uses the Inform, Optimize, and Operate cycle to create continuous, shared accountability.
+- Usage optimization reduces waste; rate optimization improves the price of resources that are actually needed.
+- Commitments and spot capacity can reduce rates but introduce utilization or interruption risks.
+- The cheapest design is not necessarily the most economical if it violates reliability, security, performance, or business requirements.
+
+### Check your understanding
+
+1. Why is the cloud provider invoice not the same as total cost of ownership?
+2. What does unit economics measure?
+3. What are the three phases of the FinOps cycle?
+4. Why can a commitment increase cost instead of reducing it?
+5. Name one way to optimize usage and one way to optimize rates.
+6. Why should cost optimization be evaluated against availability and security requirements?
+
+## Further reading
+
+- [FinOps Foundation: FinOps Framework](https://www.finops.org/framework/)
+- [FinOps Foundation: Framework phases](https://www.finops.org/framework/phases/)
+- [AWS Well-Architected Framework: Cost Optimization pillar](https://docs.aws.amazon.com/wellarchitected/latest/cost-optimization-pillar/welcome.html)
+- [Google Cloud Well-Architected Framework: Cost optimization](https://docs.cloud.google.com/architecture/framework/cost-optimization)
+- [Microsoft Azure Well-Architected Framework: Cost optimization principles](https://learn.microsoft.com/en-us/azure/well-architected/cost-optimization/principles)

@@ -1,0 +1,333 @@
+---
+sidebar_position: 6
+description: "Understand Linux services, daemons, systemd units, dependencies, logging, and safe lifecycle management."
+---
+
+# 🐧 Services and Daemons
+
+A **daemon** is a background process that provides a continuing function, such as serving web requests, accepting SSH connections, or synchronizing time. A **service** is the function and its operational definition; it may consist of one process or several processes.
+
+Linux needs a way to start services during boot, stop them during shutdown, restart failed processes, provide their environment, and record their output. A **service manager** performs that work. `systemd` is common on modern general-purpose distributions, but it is not part of the Linux kernel and is not used everywhere.
+
+By the end of this lesson, you should be able to:
+
+- Distinguish a process, daemon, service, and service manager
+- Inspect and control services with `systemctl`
+- Understand unit files, dependencies, startup policy, and service environments
+- Use the system journal to investigate service failures
+- Run services with least privilege and useful hardening controls
+
+## Process versus service
+
+These terms describe different layers:
+
+| Term | Meaning |
+| --- | --- |
+| **Process** | A running program with a PID and kernel-managed resources |
+| **Daemon** | A background process that performs a continuing task |
+| **Service** | A managed function and its configuration, which may contain multiple processes |
+| **Service manager** | Software that starts, stops, supervises, and orders services |
+
+A process can be started from a shell without being a managed service. Conversely, one service can create worker processes, listen on sockets, and use timers while being represented by one service definition.
+
+## `systemd` and units
+
+`systemd` commonly runs as process ID 1 and manages objects called **units**:
+
+| Unit type | Purpose |
+| --- | --- |
+| `.service` | Describes a long-running or one-shot process |
+| `.socket` | Listens for network or local socket activity and can activate a service |
+| `.timer` | Starts a unit according to a schedule |
+| `.target` | Groups units into a system state or milestone |
+| `.mount` | Describes a filesystem mount |
+| `.path` | Activates a unit when a path changes |
+| `.slice` | Groups processes for resource accounting and limits |
+
+The service manager builds a dependency graph and starts units in an order that satisfies their relationships. It can also place service processes in control groups, track their PIDs, collect output, and restart them according to policy.
+
+## Inspecting services
+
+These commands read service state and do not normally change it:
+
+```bash
+systemctl status ssh.service
+systemctl is-active ssh.service
+systemctl is-enabled ssh.service
+systemctl list-units --type=service --state=running
+systemctl list-unit-files --type=service
+```
+
+Service names vary between distributions. An SSH service may be named `ssh.service` or `sshd.service`. Use `systemctl list-unit-files` or package documentation to find the name on the current machine.
+
+Important states include:
+
+- **Active/running:** The unit is currently operating.
+- **Inactive/dead:** The unit is not operating and has not necessarily failed.
+- **Activating:** The manager is starting it.
+- **Deactivating:** The manager is stopping it.
+- **Failed:** A start attempt or the service process exited unsuccessfully.
+- **Enabled:** The unit is configured to be pulled in during a future boot target.
+
+Enabled and active are different properties. A service can be enabled but stopped now, or active but disabled for the next boot.
+
+## Starting, stopping, and enabling
+
+Use the command that matches the intended change:
+
+| Command | Effect |
+| --- | --- |
+| `systemctl start NAME` | Start now; does not change boot policy |
+| `systemctl stop NAME` | Stop now; does not change boot policy |
+| `systemctl restart NAME` | Stop and start now |
+| `systemctl reload NAME` | Ask the service to reread configuration, if supported |
+| `systemctl enable NAME` | Configure automatic start during a future boot |
+| `systemctl disable NAME` | Remove automatic boot start |
+| `systemctl enable --now NAME` | Enable and start now |
+| `systemctl disable --now NAME` | Disable and stop now |
+| `systemctl mask NAME` | Prevent the unit from being started until unmasked |
+
+Most lifecycle commands require root privileges:
+
+```bash
+sudo systemctl start example.service
+sudo systemctl enable --now example.service
+sudo systemctl restart example.service
+```
+
+Do not restart a production service merely because its unit file changed. First validate the change, reload the manager if the unit definition changed, then restart only when the service must receive new configuration.
+
+## A service unit file
+
+A simple service unit might look like this:
+
+```ini
+[Unit]
+Description=Example application worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=appuser
+Group=appgroup
+WorkingDirectory=/srv/example
+ExecStart=/usr/local/bin/example-worker --config /etc/example/config.yml
+EnvironmentFile=/etc/example/example.env
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Important settings include:
+
+- `Description` documents the unit.
+- `After` controls ordering; by itself it does not start or require the other unit.
+- `Wants` pulls in a related unit but is a weaker relationship than `Requires`.
+- `User` and `Group` run the service with a restricted identity.
+- `WorkingDirectory` defines the process's starting directory.
+- `ExecStart` defines the command. An absolute path avoids unexpected `PATH` behavior.
+- `EnvironmentFile` supplies variables to the service process.
+- `Restart` and `RestartSec` define recovery after certain exits.
+- `NoNewPrivileges` prevents the process and its children from gaining additional privileges.
+- `PrivateTmp` gives the service a private view of temporary directories when supported.
+- `WantedBy` says which boot target should pull in the unit when it is enabled.
+
+Place administrator-created system units under `/etc/systemd/system/`. Distribution-provided units commonly live under `/usr/lib/systemd/system/` or `/lib/systemd/system/`. Do not edit a package-owned unit directly because an update can replace it.
+
+## Drop-ins and reloading configuration
+
+Create a local override with:
+
+```bash
+sudo systemctl edit example.service
+```
+
+The editor creates a drop-in file under a directory such as `/etc/systemd/system/example.service.d/`. This keeps local changes separate from the vendor unit.
+
+After creating or changing a unit file:
+
+```bash
+sudo systemctl daemon-reload
+systemctl cat example.service
+systemctl show example.service -p FragmentPath -p DropInPaths
+```
+
+`daemon-reload` tells systemd to reread unit definitions. It does not restart any service. Use `systemctl restart` separately when the running process must receive the change.
+
+## Dependencies and ordering
+
+Service dependencies are easy to misconfigure:
+
+- `After=A` means this unit starts after `A` when both are being started; it does not pull `A` in.
+- `Wants=A` creates a preferred dependency and attempts to start `A` with this unit.
+- `Requires=A` creates a stronger dependency; failure or stopping of `A` can affect this unit.
+- `Before=A` expresses the reverse ordering relationship.
+
+`network-online.target` means that a distribution's configured network-online units have completed; it does not guarantee that every remote API, DNS server, or database is reachable. Applications should still use timeouts, retries, and clear failure behavior.
+
+Avoid unnecessary dependencies. A service that requires a remote resource to be available before it can start may fail during boot even though the resource becomes reachable moments later. Let the service start when possible and make dependency recovery explicit.
+
+## Service environments and users
+
+The environment of a service is not normally the environment of the shell that ran `systemctl`. Configure it with `Environment=`, `EnvironmentFile=`, manager settings, or the service's own configuration mechanism.
+
+```bash
+systemctl show example.service -p User -p Group -p WorkingDirectory
+systemctl show example.service -p Environment
+```
+
+A service should normally use a dedicated user and group. Check that this identity can read configuration and certificates, write only its required state and log directories, and access required sockets or devices.
+
+Use protected files or a secrets manager for high-value credentials. `EnvironmentFile` contents can be read by privileged users and may appear in diagnostics. Do not put secrets in a unit file committed to a public repository.
+
+## Service logging with the journal
+
+Many systemd services send standard output and standard error to the system journal. Query it with:
+
+```bash
+journalctl -u example.service
+journalctl -u example.service --since "15 minutes ago"
+journalctl -u example.service -f
+journalctl -b -p warning
+```
+
+These commands show all logs for a unit, recent logs, follow new entries, and show warnings from the current boot. `systemctl status` also displays a recent log excerpt.
+
+The journal's persistence, retention, rotation, access rules, and storage location depend on configuration. Logs may be volatile on minimal systems. A production design should define retention and forwarding requirements and avoid writing passwords, tokens, or sensitive data to logs.
+
+## Restart and shutdown behavior
+
+When a service is stopped, systemd commonly sends `SIGTERM` first and waits for the configured stop timeout. If the process remains, it may send `SIGKILL`. The exact behavior is controlled by unit settings such as `KillMode=`, `KillSignal=`, `TimeoutStopSec=`, and `SendSIGKILL=`.
+
+Applications should handle graceful termination by:
+
+1. Stop accepting new work.
+2. Finish or safely requeue in-flight work.
+3. Close connections and flush important data.
+4. Remove or release temporary resources.
+5. Exit within the service timeout.
+
+`Restart=on-failure` can recover from crashes, but it cannot fix a bad configuration or a dependency that is permanently unavailable. Set restart delays and investigate repeated failures instead of creating a rapid crash loop.
+
+## Resource controls and hardening
+
+Systemd can place service processes in cgroups and apply resource controls, for example:
+
+```ini
+[Service]
+MemoryMax=512M
+TasksMax=256
+CPUQuota=200%
+```
+
+These values are examples, not universal recommendations. A limit that is too low can cause the service to fail under legitimate load. Measure normal and peak usage before enforcing limits.
+
+Additional hardening options can reduce the service's access:
+
+```ini
+[Service]
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/example
+```
+
+`ProtectSystem=strict` can make most of the filesystem read-only; `ReadWritePaths` must then allow the directories the application genuinely needs. Test hardening changes in a non-production environment and inspect the journal when access is denied.
+
+Hardening is defense in depth, not a replacement for application security, correct file permissions, or a dedicated service account.
+
+## Socket activation and timers
+
+Systemd can start a service when traffic arrives on a configured socket instead of starting the daemon at boot. This is **socket activation**. Inspect socket units with:
+
+```bash
+systemctl list-sockets
+systemctl status example.socket
+```
+
+A `.timer` unit can run a service on a schedule. Inspect timers with:
+
+```bash
+systemctl list-timers
+```
+
+The service may be inactive between timer runs, which is expected. Do not confuse an inactive one-shot service with a failed long-running daemon.
+
+## Other service managers
+
+Not every Linux system uses systemd. Alpine commonly uses OpenRC, and other systems may use runit, s6, or traditional SysV init scripts. Containers and minimal images may run one application directly without a full service manager.
+
+The concepts remain similar: identify the supervisor, find its unit or service definition, inspect logs, verify the process identity, and use the manager's lifecycle commands. Do not use `systemctl` commands on a system that was not booted with systemd.
+
+## Service troubleshooting workflow
+
+When a service fails to start or is unreachable:
+
+1. Check the unit state and recent error: `systemctl status example.service`.
+2. Read the complete recent journal: `journalctl -u example.service -b`.
+3. Inspect the effective unit and drop-ins: `systemctl cat example.service`.
+4. Check configuration, executable paths, environment files, and permissions.
+5. Confirm the service user with `systemctl show example.service -p User -p Group`.
+6. Test file access as that user with `sudo -u appuser test -r /path`.
+7. Check process state and resource use with `ps` and `free`.
+8. Check ports and conflicts with `ss -ltnp`.
+9. Validate unit syntax with `systemd-analyze verify /path/to/example.service` when available.
+10. After a correction, reload the manager if the unit changed, restart the service, and verify the user-facing behavior.
+
+Common mistakes include:
+
+- Enabling a service but forgetting to start it now
+- Starting a service manually and assuming it will return after reboot
+- Editing a vendor unit instead of creating a drop-in
+- Changing a unit but forgetting `daemon-reload`
+- Assuming the service can read a variable defined in `.bashrc`
+- Using a relative executable path or incorrect working directory
+- Running as the wrong user or assigning an unreadable key/configuration file
+- Setting `Restart=always` and hiding a persistent configuration failure
+- Assuming an active service is healthy when its port, dependency, or application endpoint is broken
+
+## Practical design checklist
+
+1. Which service manager controls the workload, and which unit or definition describes it?
+2. Is the service enabled, active, and healthy from the user's perspective?
+3. Which user, group, environment, directories, devices, and network ports does it require?
+4. Are dependencies expressed with the correct relationship and ordering?
+5. Does the service log useful, non-sensitive information and retain it long enough to investigate?
+6. Does it handle `SIGTERM`, restart safely, and recover from dependency failures?
+7. Are resource limits and hardening controls measured and tested rather than copied blindly?
+8. Can an operator reproduce, validate, roll back, and recover the service configuration?
+
+## Summary
+
+- A daemon is a background process; a service is a managed function that may contain several processes.
+- `systemd` uses unit files, dependency graphs, cgroups, and the journal to manage many Linux services.
+- `start`, `stop`, `restart`, `reload`, `enable`, and `disable` change different aspects of service state.
+- `After=` controls ordering, while `Wants=` and `Requires=` express dependencies.
+- A service's environment and user are independent of an interactive shell and must be configured deliberately.
+- `SIGTERM` should enable graceful shutdown; repeated crashes should be investigated rather than hidden by restart policies.
+- Unit drop-ins, least-privilege identities, resource limits, and hardening options improve maintainability and security.
+- Service status, journal logs, effective unit configuration, process state, permissions, and listening ports provide a reliable troubleshooting path.
+
+### Check your understanding
+
+1. What is the difference between a daemon and a service?
+2. What is the difference between `systemctl start` and `systemctl enable`?
+3. Why does changing `.bashrc` usually not change a systemd service's environment?
+4. What is the difference between `After=` and `Requires=`?
+5. Why should a service run as a dedicated user?
+6. What happens if a service does not exit after its stop timeout?
+7. Why might an active service still be unreachable?
+8. What is the purpose of `systemctl daemon-reload`?
+
+## Further reading
+
+- [systemd project documentation](https://systemd.io/)
+- [`systemd.service(5)` Linux manual page](https://www.man7.org/linux/man-pages/man5/systemd.service.5.html)
+- [`systemctl(1)` Linux manual page](https://man7.org/linux/man-pages/man1/systemctl.1.html)
+- [`systemd.unit(5)` Linux manual page](https://www.freedesktop.org/software/systemd/man/systemd.unit.html)

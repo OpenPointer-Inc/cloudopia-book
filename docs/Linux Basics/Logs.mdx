@@ -1,0 +1,396 @@
+---
+sidebar_position: 10
+description: "Understand Linux logs, journald, syslog, rotation, audit records, and secure log management."
+---
+
+# 🐧 Logs
+
+A **log** is a record of an event produced by an application, service, kernel, user, or security subsystem. Logs help explain what happened, when it happened, which component was involved, and whether an operation succeeded.
+
+Logs are one part of observability:
+
+- **Logs** describe individual events.
+- **Metrics** measure numeric values over time, such as CPU usage or request rate.
+- **Traces** connect work across components as one request travels through a system.
+
+A log message is evidence, not automatically the root cause. A useful investigation correlates logs with metrics, traces, configuration changes, process state, and user impact.
+
+By the end of this lesson, you should be able to:
+
+- Find and filter Linux system, service, application, and kernel logs
+- Use `journalctl` and understand persistent versus volatile journaling
+- Explain syslog facilities, priorities, forwarding, and log rotation
+- Distinguish operational logs from Linux Audit records
+- Design logs that are useful, private, retained, and available during incidents
+
+## Where logs come from
+
+```text
+Kernel, applications, services, authentication, and audit subsystem
+                              |
+                    Local logging pipeline
+                              |
+          Journal, syslog daemon, or application files
+                              |
+           Rotation, buffering, shipping, and retention
+                              |
+              Central log platform, SIEM, or archive
+```
+
+Common sources include:
+
+| Source | Examples |
+| --- | --- |
+| **Kernel** | Device errors, filesystem failures, memory events, firewall messages |
+| **Service manager** | Service starts, stops, restarts, exit codes, and unit failures |
+| **Applications** | Requests, errors, validation failures, jobs, and business events |
+| **Authentication** | SSH logins, failed authentication, `sudo`, account changes |
+| **Package management** | Installation, upgrade, removal, and transaction events |
+| **Linux Audit** | Security-relevant system calls and policy-defined actions |
+| **Cloud platform** | Control-plane changes, network flow, identity, and provider events |
+
+The exact locations and logging services depend on the distribution and application. `/var/log` is common, but a server may send most useful records to a journal or remote collector instead.
+
+## The systemd journal
+
+`systemd-journald` collects messages from the kernel, services, standard output and error, syslog sockets, and other sources. It stores indexed records with metadata such as time, boot ID, process ID, user ID, executable, and systemd unit when those fields are available.
+
+`journalctl` reads the journal:
+
+```bash
+journalctl
+journalctl -b
+journalctl -k
+journalctl -u example.service
+journalctl --since "1 hour ago"
+journalctl -f
+journalctl -p warning..alert
+```
+
+These commands show all available entries, the current boot, kernel messages, one service, a recent time range, new entries as they arrive, and warning-or-higher messages. Use `Ctrl+C` to stop `-f` follow mode.
+
+Useful output formats include:
+
+```bash
+journalctl -u example.service -o short-iso-precise
+journalctl -u example.service -o json-pretty
+journalctl -u example.service -o verbose
+```
+
+The verbose format is useful for discovering fields. JSON or another structured format is easier for automated systems than parsing terminal-oriented text.
+
+## Filtering journal records
+
+The journal is not just an unstructured text file. Filter by fields when possible:
+
+```bash
+journalctl _SYSTEMD_UNIT=sshd.service
+journalctl _PID=1234
+journalctl _UID=1000
+journalctl PRIORITY=3
+journalctl -t application-name
+journalctl --list-boots
+```
+
+A field match such as `_SYSTEMD_UNIT=sshd.service` selects records with that field. Additional filters narrow the result. Field names beginning with an underscore are generally trusted metadata added by the journal; application-defined fields should still be validated and interpreted carefully.
+
+The standard syslog priorities are:
+
+| Priority | Meaning |
+| --- | --- |
+| `0` / `emerg` | System is unusable |
+| `1` / `alert` | Immediate action is required |
+| `2` / `crit` | Critical condition |
+| `3` / `err` | Error condition |
+| `4` / `warning` | Warning condition |
+| `5` / `notice` | Significant normal condition |
+| `6` / `info` | Informational message |
+| `7` / `debug` | Detailed diagnostic message |
+
+For example:
+
+```bash
+journalctl -p err..alert --since today
+```
+
+Choose levels consistently. If normal events are logged as errors, alerts become noisy and important failures are easier to miss.
+
+## Persistent and volatile logs
+
+Journal storage commonly uses:
+
+- `/run/log/journal/` for volatile logs, which normally disappear at reboot
+- `/var/log/journal/` for persistent logs on disk
+
+The `Storage=` setting in `/etc/systemd/journald.conf` can be `auto`, `persistent`, `volatile`, or `none`. With `auto`, persistent storage is used when the persistent journal directory exists; otherwise, storage may be volatile. Distribution defaults can differ.
+
+Check current usage and available boots:
+
+```bash
+journalctl --disk-usage
+journalctl --list-boots
+```
+
+If persistent storage is enabled, data collected early in boot may need to be flushed after `/var` is available:
+
+```bash
+sudo journalctl --flush
+```
+
+Do not assume that a log visible now will be available after a reboot. Production systems should define which logs must survive reboot, how much disk they may use, and where a remote copy is stored.
+
+## Retention and journal limits
+
+`journald` supports size and retention controls such as:
+
+- `SystemMaxUse=` and `RuntimeMaxUse=` for maximum storage usage
+- `SystemKeepFree=` and `RuntimeKeepFree=` for space reserved for other data
+- `SystemMaxFileSize=` and `RuntimeMaxFileSize=` for individual files
+- `SystemMaxFiles=` and `RuntimeMaxFiles=` for the number of files
+- `MaxRetentionSec=` for a time-based retention limit
+
+These settings protect the filesystem, but they are not a complete retention policy. The appropriate values depend on event volume, investigation needs, legal requirements, storage capacity, and central-collection behavior.
+
+To remove old archived journal files manually:
+
+```bash
+sudo journalctl --vacuum-time=14d
+sudo journalctl --vacuum-size=1G
+```
+
+Vacuuming deletes old archived records and may be irreversible. It does not necessarily reduce usage below the requested value immediately because active journal files are not removed by the same operation. Prefer tested configuration and central retention over emergency deletion.
+
+## Traditional syslog and rsyslog
+
+Many Linux systems also use a syslog daemon such as `rsyslog`. It can receive local messages, route them to files, filter by facility and priority, transform them, and forward them to another system.
+
+Common syslog facilities identify the source category:
+
+| Facility | Typical source |
+| --- | --- |
+| `auth` or `authpriv` | Authentication and authorization |
+| `cron` | Scheduled jobs |
+| `daemon` | Background services |
+| `kern` | Kernel messages |
+| `mail` | Mail systems |
+| `user` | User-level applications |
+| `local0` through `local7` | Locally assigned application categories |
+
+Use `logger` to send a controlled test message through the local logging path:
+
+```bash
+logger -t cloudopia-demo -p user.info "logging pipeline test"
+journalctl -t cloudopia-demo --since "1 minute ago"
+```
+
+Rsyslog configuration commonly lives in `/etc/rsyslog.conf` and `/etc/rsyslog.d/`. Avoid changing a production rule without testing its syntax, destination, permissions, rate, and failure behavior.
+
+## Forwarding logs centrally
+
+Local logs are useful, but an attacker with control of a host may modify or delete them. Central collection can preserve evidence, correlate events across hosts, and alert on patterns that are invisible on one machine.
+
+When forwarding logs, define:
+
+- Which sources and priorities are sent
+- Whether transport uses TLS and how the receiver is authenticated
+- What happens when the receiver is unavailable
+- How much local memory or disk buffering is allowed
+- Whether messages may be duplicated or lost during reconnects
+- Who may search, export, or delete the central copy
+- How timestamps, host identity, and sequence information are preserved
+
+UDP syslog is lightweight but can lose messages. Plain TCP improves transport behavior but does not provide complete end-to-end delivery guarantees. TLS protects confidentiality and peer authentication when configured correctly. Queues can absorb temporary outages, but a full queue still requires a policy: block, discard low-priority records, or preserve the most important events.
+
+Rsyslog supports forwarding over UDP, TCP, and TLS and can use queues. Select the transport and queue durability based on the value of the records rather than assuming that every log must be delivered identically.
+
+## Log rotation
+
+Log files grow continuously. **Log rotation** renames or copies an active file, optionally compresses the old version, creates a replacement, and removes records older than the retention policy.
+
+`logrotate` configuration commonly lives in `/etc/logrotate.conf` and `/etc/logrotate.d/`:
+
+```text
+/var/log/example/*.log {
+    weekly
+    rotate 8
+    compress
+    missingok
+    create 0640 appuser appgroup
+    postrotate
+        systemctl reload example.service
+    endscript
+}
+```
+
+This is an example only. Confirm the service's correct reload command, user, group, and log paths before using it.
+
+Inspect a configuration without applying changes:
+
+```bash
+sudo logrotate -d /etc/logrotate.conf
+```
+
+When a file is renamed, a process that already has the old file open may continue writing to it. Prefer an application-supported reopen or reload after rotation. `copytruncate` avoids requiring a reopen but has a small window in which log data can be lost and can be expensive for large files.
+
+Monitor both active and rotated logs. Compression and retention reduce space, but they do not replace central collection or a defined investigation window.
+
+## Linux Audit logs
+
+Operational logs explain how a service behaved. The Linux Audit system records security-relevant events according to configured rules. `auditd` receives audit records from the kernel and writes them, commonly to:
+
+```text
+/var/log/audit/audit.log
+```
+
+Audit can record events such as authentication, account changes, file access, command execution, system-call results, and changes to audit configuration. It does not automatically record every action unless rules are configured to capture it.
+
+Use `ausearch` for detailed queries and `aureport` for summaries:
+
+```bash
+sudo ausearch -m USER_LOGIN --success no --interpret
+sudo ausearch -ua 1000 --start today --interpret
+sudo aureport --auth --summary
+sudo aureport --login
+```
+
+Audit records can contain multiple related records for one event. Use the event identifier and the interpretation tools rather than treating every line as a separate action. Protect audit logs and configure disk-space behavior; if logging stops because the audit partition is full, the resulting security and availability impact depends on policy.
+
+Audit is not a replacement for application logs, access controls, or prevention. It provides evidence that can support detection and investigation.
+
+## Designing useful application logs
+
+A useful event answers enough questions without exposing sensitive data. Prefer structured records with fields such as:
+
+- UTC timestamp from a synchronized clock
+- Service name, version, host, and environment
+- Severity and event type
+- Request, trace, or correlation ID
+- Actor or workload identity, when appropriate
+- Operation, outcome, duration, and error category
+- Resource identifier, without unnecessarily copying sensitive content
+
+Example structured event:
+
+```json
+{
+  "timestamp": "2026-09-02T12:34:56Z",
+  "service": "checkout",
+  "event": "payment_authorized",
+  "request_id": "req-12345",
+  "outcome": "success",
+  "duration_ms": 184
+}
+```
+
+Use stable field names and event types. Structured logs make filtering and aggregation more reliable than searching for phrases that may change between releases.
+
+## Security and privacy
+
+Logs can become a second copy of the data you are trying to protect. Do not log passwords, private keys, session tokens, full payment-card data, or sensitive personal data unless there is a documented and lawful reason with appropriate protection.
+
+Use these controls:
+
+- Redact or hash sensitive values at the source.
+- Restrict local and central log access by role.
+- Encrypt logs in transit and at rest.
+- Protect audit and security logs from ordinary workload administrators where practical.
+- Detect and limit log injection from untrusted input, including newlines and control characters.
+- Keep clocks synchronized and preserve the original host and event identity.
+- Record access to sensitive logs where the risk requires it.
+- Define retention and deletion rules that satisfy legal, security, and operational requirements.
+
+A log collector must be protected too. If every host can delete or alter the central copy with the same credentials, centralization alone does not provide strong evidence preservation.
+
+## Logs in containers and cloud systems
+
+Containers commonly write application output to standard output and standard error. The container runtime or orchestrator may collect those streams, rotate local files, and ship them to a central platform. A container's writable layer is usually not a durable log archive.
+
+Cloud environments have several logging planes:
+
+- Guest operating-system logs
+- Application and container logs
+- Load balancer, DNS, firewall, and network-flow logs
+- Identity and control-plane audit logs
+- Provider service logs and incident information
+
+Correlate them with a common timestamp, request ID, host or workload identity, and deployment version. Do not assume that enabling application logging also captures cloud control-plane changes.
+
+## A log investigation workflow
+
+When investigating an incident:
+
+1. Define the affected user journey, hosts, services, and time window.
+2. Check the current and previous boot logs when persistence is available.
+3. Filter by service unit, process, identity, priority, and correlation ID.
+4. Compare log timestamps with deployments, metrics, traces, alerts, and configuration changes.
+5. Check for missing periods, rate limits, rotation, collector outages, and clock drift.
+6. Preserve relevant records before changing retention or restarting a logging service.
+7. Build a timeline and distinguish observed facts from hypotheses.
+8. Redact sensitive data before sharing the investigation.
+
+Useful commands include:
+
+```bash
+journalctl -b -p err..alert --since "30 minutes ago"
+journalctl -u example.service --since "30 minutes ago" --until now
+journalctl _SYSTEMD_UNIT=example.service -o short-iso-precise
+tail -F /var/log/example/application.log
+zgrep -i "timeout" /var/log/example/application.log.*.gz
+```
+
+`tail -F` follows a file across common rotations. `zgrep` searches compressed files when installed. Use bounded time ranges and specific patterns; dumping every log line rarely improves an investigation.
+
+## Safe practice lab
+
+Generate a clearly labelled test record without changing service configuration:
+
+```bash
+logger -t linux-basics-lab -p user.info "test event from $(hostname)"
+journalctl -t linux-basics-lab --since "1 minute ago" -o short-iso-precise
+journalctl --disk-usage
+```
+
+On a system without `journald`, inspect the configured syslog destination instead. Do not use `--vacuum-*`, remove files under `/var/log`, or change audit rules on a production server as part of this lab.
+
+## Practical design checklist
+
+1. Which events are needed for operations, security, compliance, and incident response?
+2. Are logs structured, timestamped, correlated, and attributed to the correct host or workload?
+3. Which logs survive reboot, and which are shipped to an independent location?
+4. What are the size, age, compression, rotation, and deletion policies?
+5. Can the logging path handle bursts and a temporary collector outage without blocking critical workloads?
+6. Are secrets and sensitive personal data excluded or redacted at the source?
+7. Who can read, modify, export, and delete operational and audit logs?
+8. Have log collection, rotation, restore, search, and incident-use procedures been tested?
+
+## Summary
+
+- Logs record events; metrics measure trends; traces connect work across components.
+- `journald` stores indexed records and metadata; `journalctl` filters them by boot, unit, time, priority, and fields.
+- Journal data may be volatile under `/run` or persistent under `/var`; configure and verify retention deliberately.
+- Syslog and `rsyslog` route messages using facilities and priorities and can forward them to central systems.
+- Log rotation prevents filesystems from filling, but application reopen behavior and retention must be tested.
+- Linux Audit records policy-defined security events and is complementary to operational and application logs.
+- Central collection improves correlation and evidence preservation, but transport, queues, permissions, and collector failure behavior matter.
+- Never log secrets casually; protect, redact, retain, and delete logs according to risk and requirements.
+
+### Check your understanding
+
+1. What is the difference between a log, metric, and trace?
+2. What is the difference between `journalctl -b` and `journalctl -k`?
+3. Why might logs visible before a reboot disappear afterward?
+4. What is the difference between a syslog facility and a priority?
+5. Why can `copytruncate` lose log data?
+6. How are Linux Audit records different from application logs?
+7. Why should logs be forwarded to an independent location?
+8. What should you check when a service log suddenly has a gap?
+9. Why should a logging system be protected like other sensitive infrastructure?
+
+## Further reading
+
+- [`journalctl(1)` Linux manual page](https://www.freedesktop.org/software/systemd/man/latest/journalctl.html)
+- [`journald.conf(5)` Linux manual page](https://www.freedesktop.org/software/systemd/man/latest/journald.conf.html)
+- [Rsyslog official documentation](https://docs.rsyslog.com/doc/)
+- [`logrotate(8)` Linux manual page](https://man7.org/linux/man-pages/man8/logrotate.8.html)
+- [`auditd(8)` Linux manual page](https://man7.org/linux/man-pages/man8/auditd.8.html)
+- [Red Hat: Auditing the system](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/8/html/security_hardening/auditing-the-system_security-hardening)

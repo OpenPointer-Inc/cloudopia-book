@@ -1,0 +1,250 @@
+---
+sidebar_position: 3
+description: "Understand Linux user accounts, groups, identity records, privilege, and account-management commands."
+---
+
+# 🐧 Users and Groups
+
+Linux is a multi-user operating system. Multiple people, services, and applications can use the same machine while the kernel controls which resources each one may access.
+
+Linux identifies users and groups with numbers, not only names:
+
+- A **user ID (UID)** identifies a user account.
+- A **group ID (GID)** identifies a group.
+- A **user account** stores identity and login information.
+- A **group** collects users so access can be managed as a team.
+- A **process** runs with user and group credentials that the kernel uses for access checks.
+
+Names such as `alice` and `developers` make these identities readable. The kernel ultimately uses numeric IDs.
+
+By the end of this lesson, you should be able to:
+
+- Inspect users, groups, UIDs, and GIDs
+- Explain primary and supplementary group membership
+- Create, modify, lock, and remove accounts safely
+- Understand local account files, directory services, and service users
+- Apply least privilege when granting administrative access
+
+## User identity and process identity
+
+The special **root** account traditionally has UID `0` and broad administrative privileges. Root is not a normal user and should not be used by applications or for routine work.
+
+Most applications run as an unprivileged user. A web server might run as `www-data`, `nginx`, or another service account, depending on the distribution. If the application is compromised, an unprivileged identity limits what the attacker can change.
+
+Inspect your current identity:
+
+```bash
+whoami
+id
+id "$USER"
+```
+
+`whoami` prints the effective user name. `id` displays the effective UID, primary group, and supplementary groups. The exact formatting varies between implementations.
+
+A process can have real and effective credentials. The effective IDs are normally used for permission checks. Privileged programs, set-user-ID programs, and services that change identity can make the distinction important during troubleshooting.
+
+## Where account information is stored
+
+On a traditional local system, account data is represented by files under `/etc`:
+
+| File | Purpose |
+| --- | --- |
+| `/etc/passwd` | User names, UIDs, primary GIDs, home directories, and login shells |
+| `/etc/shadow` | Password hashes and password-aging information, normally restricted to privileged users |
+| `/etc/group` | Group names, GIDs, and supplementary group members |
+| `/etc/gshadow` | Protected group-account information on systems that use it |
+| `/etc/nsswitch.conf` | Defines where the system looks up users and groups |
+| `/etc/skel` | Default files copied into newly created home directories |
+| `/etc/subuid` and `/etc/subgid` | Ranges used for subordinate user and group IDs, often by rootless containers |
+
+A simplified `/etc/passwd` entry looks like this:
+
+```text
+alice:x:1001:1001:Alex Example:/home/alice:/bin/bash
+```
+
+The fields are, in order, login name, password-field marker, UID, primary GID, comment, home directory, and login shell. The `x` commonly means that the password hash is stored in `/etc/shadow`, not that the password is literally `x`.
+
+Do not edit these files casually. A malformed account or group file can prevent logins or cause incorrect ownership checks. Use account-management tools and make a recovery plan before changing authentication configuration.
+
+## Local files are not the whole story
+
+Linux can resolve identities from local files, LDAP, Active Directory integration, NIS, or another directory service. The **Name Service Switch (NSS)** configuration determines which sources are consulted.
+
+Use `getent` when you want to ask the system's configured lookup mechanism:
+
+```bash
+getent passwd alice
+getent group developers
+getent passwd
+getent group
+```
+
+Reading `/etc/passwd` directly answers only what is in the local file. `getent` may also return identities supplied by a directory service. This distinction matters on servers where a user can own files or run processes without having a local account entry.
+
+## Primary and supplementary groups
+
+Every user has a **primary group**, recorded as the user's GID in the account record. New files commonly inherit the creating process's effective group or the containing directory's set-group-ID policy.
+
+A user can also belong to **supplementary groups**, which grant additional access. For example, a user might have `developers` as a supplementary group to access a shared source directory.
+
+View group membership:
+
+```bash
+groups
+groups alice
+id alice
+```
+
+Adding a user to a group normally affects new login sessions. An existing shell may not receive the updated supplementary-group list. Log out and back in, start a fresh session, or use `newgrp developers` when appropriate. Do not assume that changing a directory record instantly changes every running process.
+
+## Creating and modifying accounts
+
+The exact defaults differ between distributions, but the standard shadow-utils commands are widely available. The following commands require administrative privileges:
+
+```bash
+sudo groupadd developers
+sudo useradd --create-home --user-group --shell /bin/bash alex
+sudo passwd alex
+sudo usermod --append --groups developers alex
+sudo id alex
+```
+
+These commands create a group, create a user and home directory, set an interactive password, add the user to a supplementary group, and verify the result.
+
+The `--append` option is important. With `usermod -G` or `usermod --groups` without append, the specified supplementary-group list replaces the user's existing list. Accidentally omitting it can remove access the user still needs.
+
+Useful account-management operations include:
+
+```bash
+sudo usermod --shell /bin/bash alex
+sudo usermod --home /home/alex-new --move-home alex
+sudo groupmod --new-name platform developers
+sudo gpasswd --delete alex platform
+```
+
+Check command help and distribution documentation before using options on production systems. `adduser` is also available on some distributions as a friendlier wrapper around lower-level tools, but it is not identical everywhere.
+
+## Passwords, locking, and account lifecycle
+
+Use `passwd` interactively instead of putting a password on a command line, where it could be exposed in shell history or process listings:
+
+```bash
+sudo passwd alex
+sudo passwd --status alex
+sudo chage --list alex
+```
+
+Password locking usually disables password authentication by modifying the password record. It does not automatically remove SSH keys, active sessions, API tokens, scheduled jobs, or every other authentication path. Offboarding must address those paths too.
+
+Before deleting an account, identify its files and processes. Deleting an account does not necessarily delete files it owns outside its home directory; those files may display a numeric UID until ownership is reassigned.
+
+```bash
+sudo userdel alex
+# Or, if the home directory should also be removed:
+sudo userdel --remove alex
+```
+
+Choose one of these commands. `--remove` can delete the user's home directory and mail files. Treat it as destructive and confirm backups, ownership, and retention requirements first. A UID can later be reused for a different account, which may unintentionally grant that account access to old files. Reassign or archive ownership deliberately.
+
+## Service and system accounts
+
+Services should normally run under dedicated, least-privileged identities rather than a human account or root:
+
+```bash
+sudo useradd --system --no-create-home --shell /usr/sbin/nologin appuser
+```
+
+The `nologin` path can differ by distribution. A system account generally has a UID in the system-account range and is intended for a daemon, not an interactive person.
+
+A service account should have:
+
+- Only the files, directories, devices, and network permissions it needs
+- No interactive shell unless there is a justified operational need
+- Credentials supplied through a protected mechanism, not committed to source code
+- A documented owner and lifecycle
+- Logs and process limits appropriate to the service
+
+Changing a service's user can break access to its configuration, sockets, certificates, data, or log directories. Change ownership and service configuration together, then test startup and recovery.
+
+## Administrative access with `sudo`
+
+`sudo` lets an authorized user run a specific command with another identity, commonly root. It is safer and more auditable than sharing the root password or using a shared administrator account.
+
+Useful inspection commands are:
+
+```bash
+sudo -l
+sudo -u appuser id
+```
+
+Use `visudo` to edit sudo policy because it validates the file before installing it. Prefer narrow commands and groups over unrestricted access:
+
+- Grant only the commands a role requires.
+- Keep separate everyday and administrative accounts.
+- Require strong authentication and review privileged access.
+- Log and monitor privilege elevation.
+- Remove access when a person or service no longer needs it.
+
+`sudo` changes the identity of a command. It does not make the original user a different user for every process or permanently change file ownership.
+
+## Groups as an access-design tool
+
+Groups are useful for role-based access. Instead of adding individual exceptions to many files, create a group such as `developers`, `operators`, or `auditors` and grant the group the required access.
+
+Keep groups meaningful and review them regularly. Avoid broad groups that silently grant access to unrelated systems. A shared directory often combines group ownership, group write permission, and the set-group-ID directory bit so new files retain the intended group; the next permissions lesson explains that design.
+
+## Containers and user namespaces
+
+Containers use Linux users and groups too, but a user namespace can map an ID inside a container to a different, usually unprivileged, ID on the host. A process may appear to be UID `0` inside a container without being host root.
+
+This mapping reduces risk, but it is not a complete security argument. Container capabilities, mounts, devices, seccomp, mandatory access control, and runtime configuration also matter. Inspect `/etc/subuid` and `/etc/subgid` when investigating rootless container mappings.
+
+## Troubleshooting identity problems
+
+When a process cannot access a file or service, check identity in the same execution context:
+
+1. Run `id` as the affected user.
+2. Use `getent passwd user` and `getent group group` to check configured identity sources.
+3. Check the process identity with `ps -o pid,user,group,egroup,comm -p PID`.
+4. Check file ownership numerically with `ls -ln` or `stat file`.
+5. Confirm that a new login session received recent group membership changes.
+6. Check `sudo`, ACL, SELinux, AppArmor, and service-manager configuration if basic IDs look correct.
+
+Do not solve an unclear identity problem by giving the user root access or changing files to world-writable. Find the specific missing identity or authorization rule.
+
+## Practical design checklist
+
+1. Does every human and service have an identifiable account rather than a shared login?
+2. Which UID, primary GID, and supplementary groups does the process actually use?
+3. Are users and groups local, or are they supplied by a directory service?
+4. Can the service run without a login shell or root privileges?
+5. What happens to files, keys, tokens, sessions, and scheduled jobs during offboarding?
+6. Are privileged groups and `sudo` rules reviewed and logged?
+7. Could a UID reuse or container ID mapping create an ownership mistake?
+
+## Summary
+
+- Linux uses numeric UIDs and GIDs to identify users and groups during access checks.
+- A user has a primary group and may have many supplementary groups.
+- `/etc/passwd`, `/etc/shadow`, and `/etc/group` store local identity data, but NSS may add directory-service identities.
+- Use `id` and `getent` to inspect the identity that Linux actually resolves.
+- Use dedicated, restricted service accounts and prefer `sudo` with least privilege for administration.
+- Account deletion, password locking, group changes, and UID reuse require lifecycle planning.
+- Container user namespaces can remap IDs, but they must be combined with other security controls.
+
+### Check your understanding
+
+1. What is the difference between a UID and a username?
+2. What is the difference between a primary group and a supplementary group?
+3. Why is `usermod --append --groups developers alex` safer than only `usermod --groups developers alex`?
+4. Why should `getent` be used instead of reading only `/etc/passwd` on a directory-integrated server?
+5. Why is a password lock not a complete offboarding procedure?
+6. Why should a web service normally run as a dedicated unprivileged user?
+
+## Further reading
+
+- [`passwd(5)` Linux manual page](https://man7.org/linux/man-pages/man5/passwd.5.html)
+- [`useradd(8)` Linux manual page](https://man7.org/linux/man-pages/man8/useradd.8.html)
+- [`usermod(8)` Linux manual page](https://man7.org/linux/man-pages/man8/usermod.8.html)
+- [Red Hat: Managing users and groups](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/7/html/system_administrators_guide/ch-managing_users_and_groups)

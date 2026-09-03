@@ -1,0 +1,163 @@
+---
+sidebar_position: 9
+description: "Understand scalability, elasticity, autoscaling, and the limits of changing cloud capacity."
+---
+
+# Elasticity and scalability
+
+**Scalability** is a system's ability to handle more work by adding resources or changing its design. **Elasticity** is the ability to add and release capacity automatically as demand changes.
+
+The concepts are related but not identical. A system can be scalable if an engineer can add servers manually, without being elastic. An elastic system can react automatically, but it is not infinitely scalable and may still have a bottleneck.
+
+By the end of this lesson, you should be able to:
+
+- Distinguish scalability from elasticity
+- Compare vertical, horizontal, and workload-specific scaling
+- Explain how autoscaling policies respond to demand
+- Design around state, startup delay, quotas, availability, and cost
+
+## Load, capacity, and performance
+
+**Load** is the work presented to a system. It may be measured as requests per second, concurrent users, messages, database operations, bytes, or scheduled jobs. **Capacity** is the amount of work the system can handle while meeting its performance and reliability objectives.
+
+```text
+Incoming load -> Queue or load balancer -> Workers and data services
+                                             |
+                                      Measured capacity
+```
+
+Scaling should be based on the workload's real constraint. CPU may be the bottleneck for a calculation service, while memory, disk I/O, database connections, queue depth, network bandwidth, or request latency may limit another service.
+
+## Ways to scale
+
+| Method | What changes | Strength | Limitation |
+| --- | --- | --- | --- |
+| **Vertical scaling (scale up/down)** | Give one resource more or less CPU, memory, or I/O capacity | Simple for software that expects one large machine | Has a size limit and may require a restart or migration |
+| **Horizontal scaling (scale out/in)** | Add or remove instances | Supports high capacity and can improve availability | Requires traffic distribution, coordination, and usually stateless workers |
+| **Data or workload partitioning** | Split data or work across partitions, shards, or queues | Removes a single bottleneck at large scale | Adds routing, rebalancing, consistency, and operational complexity |
+
+Vertical scaling is often a useful first step, but it eventually reaches a hardware or service limit. Horizontal scaling is powerful when work can be divided safely. Scaling a database or a stateful process usually requires a separate data architecture rather than simply adding more application servers.
+
+## Autoscaling as a control loop
+
+Autoscaling is a feedback system:
+
+```text
+Measure -> Compare with target -> Add or remove capacity
+    ^                                      |
+    +------ Warm up and serve load <------+
+```
+
+An autoscaler typically has:
+
+- A metric or signal, such as CPU, queue depth, request rate, or latency
+- A target or threshold
+- Minimum and maximum capacity
+- A scale-out policy
+- A scale-in policy
+- A warm-up, cooldown, or stabilization period
+
+**Reactive scaling** responds after a metric changes. It is simple but may be too slow for a sudden spike. **Predictive or scheduled scaling** adds capacity before an expected event, such as a daily batch or product launch. Many systems combine both approaches.
+
+The metric must represent user experience or work remaining. CPU at 40% does not prove that a service has enough capacity if requests are waiting on a saturated database. Multiple policies may be needed, with a safe maximum to prevent runaway resource creation.
+
+## Common elastic building blocks
+
+Cloud architectures often combine:
+
+- Load balancers to distribute requests across healthy instances
+- Instance groups or container schedulers to add and remove workers
+- Serverless functions or managed platforms that allocate capacity per request
+- Queues to buffer work and let workers scale with queue depth
+- Caches to reduce repeated reads
+- Managed databases with read replicas, partitioning, or adjustable capacity
+
+Adding a layer of elasticity does not automatically scale the layers behind it. If an application tier scales from ten to one hundred instances while the database remains limited to ten connections, the database becomes the bottleneck or fails under the new load.
+
+## Stateless and stateful workloads
+
+Stateless workers are easier to scale horizontally because any healthy instance can handle a request. Keep sessions, files, and durable records in shared services or use a deliberate session-routing design.
+
+Stateful services need more care:
+
+- Partition data so different instances can own different ranges.
+- Use replicas for read-heavy workloads where the consistency model permits it.
+- Protect the write path with transactions, ordering, or a consensus mechanism when required.
+- Use queues and backpressure instead of accepting work faster than the system can process it.
+- Rebalance partitions and connections without interrupting active work.
+
+Some workloads cannot be scaled by simply adding identical instances. A data store, coordination service, or external API may have a fixed limit that must be measured and designed around.
+
+## Elasticity limits
+
+Cloud capacity is not infinite. An autoscaling design can be limited by:
+
+- Provider quotas, regional capacity, or unavailable machine types
+- Time required to start, initialize, and warm an instance
+- Slow image downloads, dependency connections, or cache population
+- A sudden spike that arrives faster than scaling can react
+- A hot partition or a single tenant that overloads one resource
+- Database, identity, network, or third-party API limits
+- Scale-in removing capacity while work is still in progress
+
+Scaling to zero can reduce idle cost, but it introduces cold-start latency and requires a way to preserve state. Scaling out can also create a **thundering herd**, where many new instances simultaneously request the same dependency or cache data.
+
+Design explicit load shedding, rate limits, queue backpressure, and graceful degradation for demand that exceeds safe capacity. Failing a controlled request is safer than allowing every dependency to fail unpredictably.
+
+## Elasticity and availability
+
+Elasticity can support availability, but the two are different properties. A service can add capacity and still be unavailable because of a bad deployment, a failed zone, or a single database.
+
+For an elastic and resilient design:
+
+- Keep minimum capacity distributed across appropriate failure domains.
+- Use health checks so traffic avoids unhealthy instances.
+- Drain connections and finish or requeue work before scaling in.
+- Keep startup configuration, permissions, and images reproducible.
+- Set limits so an incident cannot create unbounded cost or overload a dependency.
+- Test zone loss, rapid demand increases, failed launches, and rollback behavior.
+
+## Cost and efficiency
+
+Elasticity can reduce the cost of idle compute by releasing capacity during quiet periods. It does not eliminate costs for storage, data transfer, logs, minimum instances, reserved capacity, or managed services.
+
+The right target is not always the lowest utilization. Keeping headroom may be necessary for bursts, failover, maintenance, and predictable latency. Compare the cost of extra capacity with the business cost of slow responses or an outage.
+
+## A practical scaling example
+
+Suppose an image-processing service receives files through an API:
+
+1. The API validates the request and places a job on a queue.
+2. Worker instances scale out as queue depth grows.
+3. Workers write results to object storage and update a database.
+4. The API returns a status instead of waiting for every job to finish.
+5. Workers scale in only after completing or safely requeuing jobs.
+
+This design separates request capacity from processing capacity. The queue absorbs short bursts, while the maximum worker count protects the database and downstream services.
+
+## Practical design checklist
+
+1. What type of load is growing, and which resource is the actual bottleneck?
+2. Should the workload scale up, out, by partition, or through a queue?
+3. What metric represents user experience or work remaining?
+4. How long does new capacity take to become useful?
+5. What are the minimum, maximum, quota, and dependency limits?
+6. How are state, in-flight work, and data consistency handled during scale-in and scale-out?
+7. Have burst, failure, cost, and recovery behavior been load-tested?
+
+## Summary
+
+- Scalability is the ability to handle more work; elasticity is automatic adjustment of capacity as demand changes.
+- Vertical scaling changes the size of a resource, while horizontal scaling adds or removes instances.
+- Autoscaling is a feedback loop that depends on good metrics, safe limits, and sufficient warm-up time.
+- Stateless services scale more easily than stateful services, which need deliberate data partitioning and consistency designs.
+- Quotas, startup delay, hot spots, dependencies, and cost limit real-world elasticity.
+- Elasticity can support availability, but it does not replace redundancy, health checks, backpressure, or recovery testing.
+
+### Check your understanding
+
+1. How is an elastic system different from a system that can be scaled manually?
+2. What is one advantage and one limitation of horizontal scaling?
+3. Why might CPU be a poor autoscaling metric for some workloads?
+4. What problems can occur when an autoscaler removes an instance?
+5. Why can scaling an application tier overload a database?
