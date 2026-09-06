@@ -1,0 +1,105 @@
+---
+sidebar_position: 16
+title: "16. Virtual Networking Basics"
+description: "Master VPCs/VNets, subnets, IP addresses, firewalls, load balancers, VPN gateways, and CDNs."
+---
+
+# 🌐 16. Virtual Networking Basics
+
+Computers in isolation cannot do much; they need to communicate! In traditional IT, setting up networks meant running miles of blue Ethernet cables, buying $20,000 Cisco routers, and configuring physical firewall switches.
+
+In the cloud, you can build an entire enterprise-grade global network with **software-defined networking (SDN)** in a matter of seconds!
+
+---
+
+## 🗺️ The Complete Cloud Network Blueprint
+
+![Cloud Virtual Network Topology (VPC / VNet)](/img/cloud-book/16-virtual-networking.svg)
+
+Here is a visual map of a secure, production-grade cloud network:
+
+```
+                      🌐 THE PUBLIC INTERNET (Users Worldwide)
+                                         │
+                                         ▼
+                      ┌──────────────────────────────────────┐
+                      │    ⚡ CDN (Content Delivery Network) │
+                      └──────────────────┬───────────────────┘
+                                         │
+                                         ▼
+  ╔══════════════════════════════════════════════════════════════════════════╗
+  ║ 🏰 VIRTUAL PRIVATE CLOUD (VPC / VNet) - CIDR: 10.0.0.0/16                ║
+  ║                                                                          ║
+  ║  ┌────────────────────────────────────────────────────────────────────┐  ║
+  ║  │ 🟢 PUBLIC SUBNET (10.0.1.0/24) - Internet Gateway Attached         │  ║
+  ║  │                                                                    │  ║
+  ║  │            [ ⚖️ Application Load Balancer ]                        │  ║
+  ║  │                   │                  │                             │  ║
+  ║  │                   ▼                  ▼                             │  ║
+  ║  │            [ 🖥️ Web VM 1 ]    [ 🖥️ Web VM 2 ]                       │  ║
+  ║  │            (Public Facing)    (Public Facing)                      │  ║
+  ║  └───────────────────┬──────────────────┬─────────────────────────────┘  ║
+  ║                      │                  │  (Internal Only - No Internet) ║
+  ║  ┌───────────────────▼──────────────────▼─────────────────────────────┐  ║
+  ║  │ 🔒 PRIVATE SUBNET (10.0.2.0/24) - Blocked from External Access     │  ║
+  ║  │                                                                    │  ║
+  ║  │           [ 🛡️ Network Security Group / Firewall Rules ]           │  ║
+  ║  │                                 │                                  │  ║
+  ║  │                                 ▼                                  │  ║
+  ║  │                   [ 🗄️ Master SQL Database ]                       │  ║
+  ║  │                   (Private IP: 10.0.2.15 only)                     │  ║
+  ║  └────────────────────────────────────────────────────────────────────┘  ║
+  ╚══════════════════════════════════════════════════════════════════════════╝
+```
+
+---
+
+## 🔍 Core Networking Building Blocks
+
+### 1. 🏰 VPC / VNet (Virtual Private Cloud / Network)
+* Your own logically isolated virtual data center network in the cloud. Nobody can enter or see inside unless you configure a doorway.
+
+### 2. 🏘️ Subnets (Public vs. Private)
+* **Subnet:** A smaller segmented partition of your overall IP address space.
+* **Public Subnet:** Has a direct route to an **Internet Gateway (IGW)**. Used for load balancers and web servers that must receive public visitors.
+* **Private Subnet:** Has **zero direct internet routes**. Perfect for databases, financial ledgers, and backend microservices so hackers on the internet cannot touch them!
+
+### 3. 🏷️ IP Addresses (Public vs. Private)
+* **Private IP (e.g., `10.0.1.5`):** Used strictly for internal communication between servers inside your VPC. Free of charge and completely invisible to the outside world.
+* **Public IP (e.g., `54.214.18.90`):** Globally unique address reachable by any computer on the public internet.
+
+### 4. 🛡️ Firewalls & Network Security Groups (NSGs)
+* Act as digital security guards that inspect every packet of data.
+* You create **Inbound and Outbound Rules** (e.g., *"Allow Port 443 HTTPS for all web visitors, but only allow Port 22 SSH from my home IP address"*).
+
+### 5. ⚖️ Load Balancers (ALB / NLB)
+* Distribute incoming web traffic across multiple healthy virtual machines so no single server gets overloaded or overheats.
+
+### 6. 🌉 VPN Gateways & ExpressRoute / Direct Connect
+* Secure, encrypted network tunnels connecting your company's physical office or home directly into your private cloud VPC.
+
+### 7. ⚡ Content Delivery Networks (CDNs)
+* Caches static images, CSS, and video files at hundreds of Edge Locations worldwide to make pages load in the blink of an eye.
+
+---
+
+## 📋 Networking Terms Cheat Sheet
+
+| Term | What is it? | Real-World Analogy |
+| :--- | :--- | :--- |
+| **VPC / VNet** | Isolated Private Network | A gated community neighborhood |
+| **Subnet** | Network sub-division | A specific street in the neighborhood |
+| **Public IP** | Globally routable address | Your home's official postal address |
+| **Private IP** | Internal address | Bedroom #2 inside the house |
+| **Firewall (NSG)** | Packet filtering filter | Security guard checking IDs at the gate |
+| **Load Balancer** | Traffic distributor | Airport traffic controller directing planes |
+| **CDN** | Worldwide caching cache | Local convenience stores stocked with goods |
+
+:::tip 🎯 Beginner Golden Rule
+**Never put a database in a Public Subnet.** Always place databases in a Private Subnet and only allow your web servers to connect to it!
+:::
+
+---
+
+### ⏭️ Next Step
+Where do we store all our files and media? Let’s learn the storage shelves in **[Chapter 17: Cloud Storage Types & Lifecycle Tiers ➡️](./17-Cloud-Storage-Types.mdx)**

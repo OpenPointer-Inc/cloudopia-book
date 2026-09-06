@@ -1,0 +1,98 @@
+---
+sidebar_position: 7
+title: "07. Cloud Service Models (IaaS, PaaS, SaaS, Serverless)"
+description: "Master IaaS, PaaS, SaaS, and Serverless using the world-famous Pizza-as-a-Service analogy."
+---
+
+# 🍕 07. Cloud Service Models (IaaS, PaaS, SaaS, Serverless)
+
+When you order food, you have choices: do you buy raw flour and knead dough at home, buy a frozen ready-to-bake pizza, get hot delivery to your door, or dine in a fancy restaurant where waiters clean up after you?
+
+In the cloud, this concept is known as the **Service Delivery Spectrum**:
+
+![Pizza as a Service: On-Premises, IaaS, PaaS, and SaaS Illustrated](/img/cloud-book/07-pizza-service-models.jpg)
+
+```
+ ┌────────────────────────────────────────────────────────────────────────┐
+ │                    🍕 PIZZA-AS-A-SERVICE ANALOGY                       │
+ ├────────────────┬───────────────┬────────────────┬──────────────────────┤
+ │ 🏠 Traditional │ 🧱 IaaS       │ 🍳 PaaS        │ 🍽️ SaaS              │
+ │ (On-Premises)  │ (Take & Bake) │ (Pizza Delivery│ (Dine In Restaurant) │
+ ├────────────────┼───────────────┼────────────────┼──────────────────────┤
+ │ You make dough │ Store gives   │ Store cooks    │ Restaurant provides  │
+ │ You buy cheese │ crust & cheese│ & delivers box │ table, drinks, pizza │
+ │ You bake in oven│ You bake in  │ You provide    │ & washes the dishes! │
+ │ You set table  │ your own oven │ table & drinks │                      │
+ └────────────────┴───────────────┴────────────────┴──────────────────────┘
+```
+
+---
+
+## 🧱 1. IaaS: Infrastructure as a Service (Take & Bake)
+
+**"Give me the empty computer hardware, and I will install everything myself."**
+
+* **What the Provider Manages:** Physical datacenter, electricity, cooling, server hardware, networking cables, hypervisors.
+* **What YOU Manage:** Operating System (Linux/Windows), security patches, installed software, runtime engines, databases, and application code.
+* **Real-World Tech Examples:** Amazon EC2, Azure Virtual Machines, Google Compute Engine.
+
+---
+
+## 🍳 2. PaaS: Platform as a Service (Delivery to your Door)
+
+**"I don't care about operating system updates or Linux kernel patches. Just give me a running environment to deploy my web code!"**
+
+* **What the Provider Manages:** Hardware, networking, OS installation, security patching, runtime environments (Node.js, Python, Java), database servers.
+* **What YOU Manage:** Your application code and your database data!
+* **Real-World Tech Examples:** AWS Elastic Beanstalk, Azure App Service, Heroku, Google App Engine.
+
+---
+
+## 🍽️ 3. SaaS: Software as a Service (Dining Out in a Restaurant)
+
+**"I just want to use the finished software inside my web browser. I don't care how it is coded or hosted!"**
+
+* **What the Provider Manages:** 100% of everything (hardware, OS, code, databases, backups, security, bug fixes).
+* **What YOU Manage:** Your own user account, password, and personal files/settings.
+* **Real-World Tech Examples:** Gmail, Microsoft 365, Google Docs, Netflix, Dropbox, Canva.
+
+---
+
+## ⚡ 4. The Modern Super-Model: Serverless Computing (FaaS)
+
+**"Only run my 10 lines of code when a user clicks a button, and bill me for 50 milliseconds!"**
+
+In Serverless, you don't even rent a container or platform. The cloud provider keeps your code asleep. When a user submits an order, the cloud wakes up, runs your code in a split second, sends the reply, and goes back to sleep.
+
+* **Billing:** If 0 people visit your site, you pay **$0.00**!
+* **Examples:** AWS Lambda, Azure Functions, Google Cloud Functions.
+
+---
+
+## 📊 The Responsibility Stack Diagram
+
+Here is what you manage vs. what the cloud provider manages across the tiers:
+
+```
+  Layer                  🏢 On-Prem    🧱 IaaS      🍳 PaaS      🍽️ SaaS
+  ─────────────────────────────────────────────────────────────────────
+  User Application       [ YOU ]       [ YOU ]      [ YOU ]      [ CLOUD ]
+  Data & Content         [ YOU ]       [ YOU ]      [ YOU ]      [ CLOUD ]
+  Runtime (Node/Python)  [ YOU ]       [ YOU ]      [ CLOUD ]    [ CLOUD ]
+  Operating System (OS)  [ YOU ]       [ YOU ]      [ CLOUD ]    [ CLOUD ]
+  Virtualization Engine  [ YOU ]       [ CLOUD ]    [ CLOUD ]    [ CLOUD ]
+  Physical Servers       [ YOU ]       [ CLOUD ]    [ CLOUD ]    [ CLOUD ]
+  Storage & Hard Drives  [ YOU ]       [ CLOUD ]    [ CLOUD ]    [ CLOUD ]
+  Datacenter Power & AC  [ YOU ]       [ CLOUD ]    [ CLOUD ]    [ CLOUD ]
+```
+
+:::tip 🎯 Which one should you pick?
+* **Need total control to install special custom software?** 👉 Pick **IaaS**
+* **Building a web app and want to launch fast?** 👉 Pick **PaaS** or **Serverless**
+* **Just need email, spreadsheets, or chat for your team?** 👉 Pick **SaaS**
+:::
+
+---
+
+### ⏭️ Next Step
+Let’s explore the financial magic behind this in **[Chapter 08: CapEx vs. OpEx ➡️](./08-CapEx-vs-OpEx.mdx)**

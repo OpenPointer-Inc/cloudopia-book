@@ -1,0 +1,87 @@
+---
+sidebar_position: 9
+title: "09. Consumption-Based & Pay-As-You-Go Pricing"
+description: "How cloud billing works: paying only for the electricity and water you actually use."
+---
+
+# 💡 09. Consumption-Based & Pay-As-You-Go Pricing
+
+In the old days of business software, companies had to purchase expensive lifetime software licenses and long-term contracts. If you bought 500 licenses and only 20 employees used them, you still paid for all 500!
+
+The cloud changed the world forever by introducing the **Consumption-Based Pricing Model**.
+
+---
+
+## 🚰 The Real-World Analogy: The Utility Meter
+
+Think about how your home pays for tap water and electricity:
+
+```
+  ┌─────────────────────────────────────────────────────────────┐
+  │                 🚿 THE WATER TAP ANALOGY                    │
+  ├─────────────────────────────────────────────────────────────┤
+  │ 1. When the tap is closed: $0.00 / minute                   │
+  │ 2. When you wash your hands: You pay for 1 liter of water   │
+  │ 3. When you fill a swimming pool: You pay for 5,000 liters  │
+  │ 4. When you leave on vacation: Meter stops spinning!        │
+  └─────────────────────────────────────────────────────────────┘
+```
+
+In the cloud, you never sign a lease saying you must keep 10 servers running for 3 years (unless you specifically want bulk discounts). You turn on a server, run it for 2 hours, turn it off, and pay for **exactly 2 hours**!
+
+---
+
+## ⏱️ Granular Billing: Down to the Millisecond!
+
+Cloud providers measure your consumption across four main dimensions:
+
+```
+          ┌──────────────────────────────────────────────────┐
+          │         📊 4 METRICS ON YOUR CLOUD BILL          │
+          └────────────────────────┬─────────────────────────┘
+                                   │
+       ┌───────────────────────────┼───────────────────────────┐
+       ▼                           ▼                           ▼
+┌──────────────┐            ┌──────────────┐            ┌──────────────┐
+│  🧠 Compute  │            │  📦 Storage  │            │  🌐 Network  │
+│ (Seconds or  │            │ (GB per month│            │ (Data Out to │
+│ Milliseconds)│            │ stored)      │            │ the Internet)│
+└──────────────┘            └──────────────┘            └──────────────┘
+```
+
+1. **Compute Time:** Billed per-second or per-millisecond while your Virtual Machine or Serverless Function is active.
+2. **Storage Volume:** Billed per Gigabyte (GB) per month (e.g., $0.02 per GB per month on Amazon S3).
+3. **Network Egress (Data Transfer Out):** Transferring data *into* the cloud is usually free; sending data *out* to the public internet costs a few pennies per GB.
+4. **Operations / API Requests:** Billed per 10,000 or 1,000,000 read/write database queries.
+
+---
+
+## 💰 Three Ways to Buy Cloud Compute
+
+To save even more money, cloud providers offer three main purchasing tiers:
+
+```
+  ┌────────────────────────────────────────────────────────────────────────┐
+  │                     🏷️ COMPUTE PRICING TIERS                           │
+  ├────────────────────┬────────────────────┬──────────────────────────────┤
+  │ 1. On-Demand       │ 2. Reserved /      │ 3. Spot Instances            │
+  │                    │    Savings Plans   │    (Flash Sale Discount)     │
+  ├────────────────────┼────────────────────┼──────────────────────────────┤
+  │ • Maximum freedom  │ • 1 to 3-year      │ • Up to 90% discount         │
+  │ • Zero commitment  │   commitment       │ • Cloud provider can reclaim │
+  │ • Normal list price│ • Save 40% - 72%   │   the server on 2-min notice │
+  │ • Great for testing│ • Great for steady │ • Great for video rendering  │
+  │   and new projects │   production apps  │   and AI training batch jobs │
+  └────────────────────┴────────────────────┴──────────────────────────────┘
+```
+
+:::tip 🎯 Beginner Pro-Tip
+When doing tutorials and homework projects:
+1. Always choose **Free Tier** eligible VM shapes (like `t2.micro` on AWS or `B1s` on Azure).
+2. **Stop or Delete** your resources when you finish studying so your bill stays at **$0.00**!
+:::
+
+---
+
+### ⏭️ Next Step
+How can cloud providers afford to offer these cheap prices? Let's find out in **[Chapter 10: Economies of Scale ➡️](./10-Economies-of-Scale.mdx)**
